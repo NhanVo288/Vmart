@@ -31,9 +31,9 @@ export function HomePage() {
   const CATEGORIES = [
     { label: t('catLaptops'), type: 'laptops', image: '/images/products/laptop-macbook-air.jpg' },
     { label: t('catDesktops'), type: 'desktops', image: '/images/products/desktop-mac-studio.jpg' },
-    { label: t('catGraphicsCards'), type: 'graphics-cards', image: '/images/products/gpu-rtx.jpg' },
-    { label: t('catProcessors'), type: 'processors', image: '/images/products/cpu-amd.jpg' },
-    { label: t('catMemory'), type: 'memory', image: '/images/products/ram-corsair.jpg' },
+    { label: t('catGraphicsCards'), type: 'gpus', image: '/images/products/gpu-rtx.jpg' },
+    { label: t('catProcessors'), type: 'cpus', image: '/images/products/cpu-amd.jpg' },
+    { label: t('catMemory'), type: 'ram', image: '/images/products/ram-corsair.jpg' },
     { label: t('catStorage'), type: 'storage', image: '/images/products/ssd-storage.jpg' },
     { label: t('catMonitors'), type: 'monitors', image: '/images/products/monitor.jpg' },
     { label: t('catPeripherals'), type: 'peripherals', image: '/images/products/mouse.jpg' },
