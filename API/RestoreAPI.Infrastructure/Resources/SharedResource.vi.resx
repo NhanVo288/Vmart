@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Welcome" xml:space="preserve">
+    <value>Chào mừng đến với Restore API</value>
+  </data>
+  <data name="ProductNotFound" xml:space="preserve">
+    <value>Không tìm thấy sản phẩm</value>
+  </data>
+  <data name="BasketNotFound" xml:space="preserve">
+    <value>Không tìm thấy giỏ hàng</value>
+  </data>
+  <data name="OrderNotFound" xml:space="preserve">
+    <value>Không tìm thấy đơn hàng</value>
+  </data>
+  <data name="FavoriteNotFound" xml:space="preserve">
+    <value>Không tìm thấy mục yêu thích</value>
+  </data>
+  <data name="UserNotFound" xml:space="preserve">
+    <value>Không tìm thấy người dùng</value>
+  </data>
+  <data name="InvalidCredentials" xml:space="preserve">
+    <value>Thông tin đăng nhập không hợp lệ</value>
+  </data>
+  <data name="InsufficientStock" xml:space="preserve">
+    <value>Số lượng tồn kho không đủ</value>
+  </data>
+  <data name="Resource Not Found" xml:space="preserve">
+    <value>Không tìm thấy tài nguyên</value>
+  </data>
+  <data name="Validation Failed" xml:space="preserve">
+    <value>Xác thực dữ liệu thất bại</value>
+  </data>
+  <data name="Conflict" xml:space="preserve">
+    <value>Dữ liệu bị xung đột</value>
+  </data>
+  <data name="Forbidden" xml:space="preserve">
+    <value>Bạn không có quyền thực hiện thao tác này</value>
+  </data>
+  <data name="External Service Failure" xml:space="preserve">
+    <value>Dịch vụ bên ngoài gặp sự cố</value>
+  </data>
+  <data name="An unexpected error occurred" xml:space="preserve">
+    <value>Đã xảy ra lỗi không mong muốn</value>
+  </data>
+  <data name="InternalServerError" xml:space="preserve">
+    <value>Đã xảy ra lỗi máy chủ không mong muốn</value>
+  </data>
+  <data name="Unauthorized" xml:space="preserve">
+    <value>Chưa được xác thực</value>
+  </data>
+  <data name="BadRequest" xml:space="preserve">
+    <value>Yêu cầu không hợp lệ</value>
+  </data>
+  <data name="Product.NotFound" xml:space="preserve">
+    <value>Không tìm thấy sản phẩm</value>
+  </data>
+  <data name="Product.InsufficientStock" xml:space="preserve">
+    <value>Số lượng tồn kho không đủ</value>
+  </data>
+  <data name="Product.AlreadyExists" xml:space="preserve">
+    <value>Sản phẩm đã tồn tại</value>
+  </data>
+  <data name="Product.Forbidden" xml:space="preserve">
+    <value>Bạn không có quyền thao tác với sản phẩm này</value>
+  </data>
+  <data name="Basket.NotFound" xml:space="preserve">
+    <value>Không tìm thấy giỏ hàng</value>
+  </data>
+  <data name="Basket.Empty" xml:space="preserve">
+    <value>Giỏ hàng đang trống</value>
+  </data>
+  <data name="Order.NotFound" xml:space="preserve">
+    <value>Không tìm thấy đơn hàng</value>
+  </data>
+  <data name="Order.AlreadyExists" xml:space="preserve">
+    <value>Đơn hàng cho giao dịch thanh toán này đã tồn tại</value>
+  </data>
+  <data name="Order.PaymentMismatch" xml:space="preserve">
+    <value>Số tiền thanh toán không khớp với tổng tiền dự kiến</value>
+  </data>
+  <data name="Order.InvalidShippingAddress" xml:space="preserve">
+    <value>Không thể tạo đơn hàng vì địa chỉ giao hàng không hợp lệ</value>
+  </data>
+  <data name="Order.BasketNotReady" xml:space="preserve">
+    <value>Không tìm thấy giỏ hàng hoặc giỏ hàng thiếu thông tin thanh toán</value>
+  </data>
+  <data name="Account.UserNotFound" xml:space="preserve">
+    <value>Không tìm thấy người dùng</value>
+  </data>
+  <data name="Account.InvalidCredentials" xml:space="preserve">
+    <value>Email hoặc mật khẩu không chính xác</value>
+  </data>
+  <data name="Account.RegistrationFailed" xml:space="preserve">
+    <value>Đăng ký tài khoản thất bại</value>
+  </data>
+  <data name="Account.PasswordResetFailed" xml:space="preserve">
+    <value>Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn</value>
+  </data>
+  <data name="StockNotification.ProductInStock" xml:space="preserve">
+    <value>Sản phẩm hiện đang còn hàng</value>
+  </data>
+  <data name="StockNotification.AlreadySubscribed" xml:space="preserve">
+    <value>Bạn đã đăng ký nhận thông báo cho sản phẩm này</value>
+  </data>
+  <data name="Favorite.NotFound" xml:space="preserve">
+    <value>Không tìm thấy danh sách yêu thích</value>
+  </data>
+  <data name="Favorite.ItemNotFound" xml:space="preserve">
+    <value>Không tìm thấy sản phẩm trong danh sách yêu thích</value>
+  </data>
+  <data name="Infrastructure.ExternalServiceFailure" xml:space="preserve">
+    <value>Dịch vụ bên ngoài gặp sự cố</value>
+  </data>
+</root>

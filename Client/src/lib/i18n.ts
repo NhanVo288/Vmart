@@ -1,0 +1,733 @@
+import { useState, useEffect } from 'react';
+
+export type SupportedLanguage = 'en' | 'vi';
+
+export interface LanguageOption {
+  code: SupportedLanguage;
+  name: string;
+  nativeName: string;
+  dir: 'ltr' | 'rtl';
+  flag: string;
+}
+
+export const LANGUAGES: LanguageOption[] = [
+  { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr', flag: '🇺🇸' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', dir: 'ltr', flag: '🇻🇳' },
+];
+
+export const translations: Record<SupportedLanguage, Record<string, string>> = {
+  en: {
+    // Navigation & Header
+    appTitle: 'VMart',
+    catalog: 'Catalog',
+    about: 'About Us',
+    contact: 'Contact',
+    login: 'Sign In',
+    register: 'Sign Up',
+    logout: 'Sign Out',
+    profile: 'Profile',
+    myOrders: 'My Orders',
+    wishlist: 'Wishlist',
+    favorites: 'Favorites',
+    cart: 'Cart',
+    adminDashboard: 'Admin Dashboard',
+    vendorDashboard: 'Vendor Dashboard',
+    dashboard: 'Dashboard',
+    language: 'Language',
+    searchPlaceholder: 'Search products...',
+    search: 'Search',
+    welcomeUser: 'Welcome',
+
+    // Products & Catalog Page
+    productsTitle: 'Our Products',
+    allProducts: 'All Products',
+    sortBy: 'Sort By',
+    sortAlphabetical: 'Alphabetical',
+    sortPriceLowHigh: 'Price: Low to High',
+    sortPriceHighLow: 'Price: High to Low',
+    filterByBrand: 'Brands',
+    filterByType: 'Categories',
+    filterByPrice: 'Price Range',
+    allBrands: 'All Brands',
+    allTypes: 'All Categories',
+    resetFilters: 'Reset Filters',
+    noProductsFound: 'No products found matching your criteria',
+    price: 'Price',
+    category: 'Category',
+    brand: 'Brand',
+    inStock: 'In Stock',
+    outOfStock: 'Out of Stock',
+    addToCart: 'Add to Cart',
+    addingToCart: 'Adding...',
+    viewDetails: 'View Details',
+    seller: 'Seller',
+    description: 'Description',
+    quantity: 'Quantity',
+
+    // Cart / Basket Page
+    cartTitle: 'Shopping Cart',
+    emptyCartMessage: 'Your cart is empty',
+    emptyCartSubtitle: 'Looks like you haven\'t added any items to your cart yet',
+    startShopping: 'Start Shopping',
+    item: 'Item',
+    subtotal: 'Subtotal',
+    deliveryFee: 'Delivery Fee',
+    total: 'Total',
+    checkout: 'Proceed to Checkout',
+    remove: 'Remove',
+    clearCart: 'Clear Cart',
+    itemsInCart: 'items in cart',
+    freeDelivery: 'Free delivery on orders over $100',
+
+    // Wishlist / Favorites
+    favoritesTitle: 'My Wishlist',
+    emptyFavoritesMessage: 'Your wishlist is empty',
+    emptyFavoritesSubtitle: 'Explore our catalog and save your favorite products',
+    moveToCart: 'Move to Cart',
+
+    // Orders Page
+    ordersTitle: 'Order History',
+    orderNumber: 'Order #',
+    orderDate: 'Date',
+    orderStatus: 'Status',
+    orderTotal: 'Total',
+    orderItems: 'Items',
+    noOrdersFound: 'No orders found',
+    statusPending: 'Pending',
+    statusPaymentReceived: 'Payment Received',
+    statusPaymentFailed: 'Payment Failed',
+    statusShipped: 'Shipped',
+
+    // Checkout Page
+    checkoutTitle: 'Checkout',
+    shippingAddress: 'Shipping Address',
+    paymentDetails: 'Payment Details',
+    fullName: 'Full Name',
+    address1: 'Address Line 1',
+    address2: 'Address Line 2',
+    city: 'City',
+    state: 'State / Province',
+    zip: 'ZIP / Postal Code',
+    country: 'Country',
+    submitOrder: 'Place Order',
+    orderSuccessTitle: 'Thank you for your order!',
+    orderSuccessSubtitle: 'Your order has been placed successfully and is being processed',
+
+    // Auth Pages
+    signInTitle: 'Welcome Back',
+    signInSubtitle: 'Sign in to access your account',
+    signUpTitle: 'Create an Account',
+    signUpSubtitle: 'Join VMart for the best shopping experience',
+    email: 'Email Address',
+    password: 'Password',
+    confirmPassword: 'Confirm Password',
+    rememberMe: 'Remember me',
+    dontHaveAccount: 'Don\'t have an account?',
+    alreadyHaveAccount: 'Already have an account?',
+    signUpNow: 'Sign Up',
+    signInNow: 'Sign In',
+
+    // Footer & General
+    allRightsReserved: 'All rights reserved',
+    privacyPolicy: 'Privacy Policy',
+    termsOfService: 'Terms of Service',
+    support: 'Customer Support',
+    quickLinks: 'Quick Links',
+    loading: 'Loading...',
+    errorOccurred: 'An error occurred',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    // Products Page specific
+    discoverProducts: 'Discover Products',
+    browseTechGear: 'Browse our collection of premium tech gear',
+    searchProductsPlaceholder: 'Search products… (Press Enter to search)',
+    showPerPage: 'Show per page:',
+    filters: 'Filters',
+    clearAllFilters: 'Clear all filters',
+    tryAdjustingFilters: 'Try adjusting your search or filters',
+    nameAZ: 'Name A–Z',
+    nameZA: 'Name Z–A',
+    done: 'Done',
+    back: 'Back',
+    backToHome: 'Back to Home',
+    continueShopping: 'Continue Shopping',
+    browseProducts: 'Browse Products',
+    viewAll: 'View All',
+    viewAllProducts: 'View All Products',
+    change: 'Change',
+    tryAgain: 'Try Again',
+    clearFilter: 'Clear filter',
+    all: 'All',
+    free: 'Free',
+    discount: 'Discount',
+    shipping: 'Shipping',
+    securedBySepay: 'Payment confirmed by SePay',
+    qty: 'Qty',
+
+    // Home Page
+    heroTitle: 'Build Your Dream Setup',
+    heroSubtitle: 'Premium PC components, laptops, and peripherals from the brands you love.',
+    shopNow: 'Shop Now',
+    browseCatalog: 'Browse Catalog',
+    shopByCategory: 'Shop by Category',
+    findWhatYouNeed: 'Find exactly what you need',
+    featuredProducts: 'Featured Products',
+    handPicked: 'Hand-picked for your next build',
+    readyToUpgrade: 'Ready to Upgrade?',
+    exploreFullCatalog: 'Explore our full catalog and find the perfect components for your build.',
+    exploreProducts: 'Explore Products',
+    freeShipping: 'Free Shipping',
+    onOrdersOver: 'On orders over VND500',
+    expertSupport: 'Expert Support',
+    dedicatedHelp: '24/7 dedicated help',
+    securePayment: 'Secure Payment',
+    protectedCheckout: '100% protected checkout',
+    easyReturns: 'Easy Returns',
+    returnPolicy: '30-day return policy',
+
+    // Category names
+    catLaptops: 'Laptops',
+    catDesktops: 'Desktops',
+    catGraphicsCards: 'Graphics Cards',
+    catProcessors: 'Processors',
+    catMemory: 'Memory',
+    catStorage: 'Storage',
+    catMonitors: 'Monitors',
+    catPeripherals: 'Peripherals',
+
+    // About Page
+    aboutTitle: 'About VMart',
+    aboutSubtitle: 'Inspired by the timeless flow of the Nile, VMart brings you a modern marketplace rooted in trust, quality, and community.',
+    aboutStory1: 'VMart was born from the belief that online shopping should be as trustworthy as a handshake. Named after the Nile River — the lifeline of Vietnam  — we bring the same life-giving energy to e-commerce.',
+    aboutStory2: 'From day one, our mission has been simple: connect people with the products they love, delivered with care and speed. Every order is a promise kept.',
+    ourValues: 'Our Values',
+    qualityFirst: 'Quality First',
+    qualityFirstDesc: 'Every product is curated to meet the highest standards of excellence.',
+    communityDriven: 'Community Driven',
+    communityDrivenDesc: 'Built by the community, for the community — your voice shapes VMart.',
+    fastReliable: 'Fast & Reliable',
+    fastReliableDesc: 'Lightning-fast shipping with real-time tracking every step of the way.',
+    secureShoppingTitle: 'Secure Shopping',
+    secureShoppingDesc: 'Enterprise-grade security protects every transaction and your data.',
+
+    // Technologies & Architecture
+    techTitle: 'Technologies & Architecture',
+    techSubtitle: 'Built with modern tools and best practices for performance, scalability, and maintainability.',
+    backend: 'Backend',
+    frontend: 'Frontend',
+    databases: 'Databases & Data Storage',
+    architecture: 'Architecture & Design Patterns',
+    versionControl: 'Version Control & Deployment',
+    techCSharp: 'Backend programming language',
+    techDotNet: 'Backend platform and runtime',
+    techAspWebApi: 'REST API development',
+    techEf: 'ORM and database access',
+    techIdentity: 'Authentication, authorization, and user management',
+    techMediatR: 'Implementing application-level CQRS communication',
+    techFluentValidation: 'Backend request and model validation',
+    techHangfire: 'Background job processing',
+    techSignalR: 'Real-time communication and notifications',
+    techSmtp: 'Email delivery',
+    techSerilog: 'Structured application logging',
+    techSepay: 'VietQR payments and automatic bank-transfer confirmation',
+    techReact: 'Frontend UI library',
+    techTypeScript: 'Frontend programming language',
+    techVite: 'Frontend development and build tooling',
+    techRedux: 'Client-side state management',
+    techRtkQuery: 'API data fetching, caching, and server-state management',
+    techReactRouter: 'Client-side routing',
+    techMui: 'UI component and styling framework',
+    techReactHookForm: 'Form state and management',
+    techZod: 'Client-side schema validation',
+    techSqlServer: 'Primary relational database',
+    techRedis: 'Caching and fast temporary data storage',
+    techElasticsearch: 'Logging and log data storage/search',
+    techCleanArch: 'Separation of concerns and maintainable application structure',
+    techCqrs: 'Separating read and write operations',
+    techRepoPattern: 'Abstraction of data-access operations',
+    techUowPattern: 'Managing related database operations as a single transaction',
+    techResultPattern: 'Consistent handling of operation success and failure',
+    techOptionsPattern: 'Strongly typed application configuration',
+    techDi: 'Managing dependencies and improving testability',
+    techGit: 'Version control',
+    techGithub: 'Source-code hosting and collaboration',
+    techDocker: 'Application containerization',
+    techSmarterAsp: 'Web hosting and deployment',
+    techCtaDesc: 'Explore the full technology stack powering VMart — from backend to frontend, databases to architecture.',
+    viewTechnologies: 'View Technologies',
+    backToAbout: 'Back to About',
+    viewProducts: 'View Products',
+    techBuiltWith: 'Built with Modern Tech',
+    techBuiltWithDesc: 'VMart is crafted with cutting-edge technologies for performance, scalability, and a seamless user experience.',
+    dbDiagramTitle: 'Database Schema',
+    dbDiagramSubtitle: 'Interactive view of all database tables, columns, and their relationships',
+
+    // Contact Page
+    contactTitle: 'Get in Touch',
+    contactSubtitle: "Have a question, suggestion, or just want to say hello? We'd love to hear from you.",
+    contactAddress: 'Address',
+    contactAddressValue: 'TPHCM',
+    contactEmail: 'Email',
+    contactPhone: 'Phone',
+    contactHours: 'Hours',
+    contactHoursValue: 'Sat–Thu, 9 AM – 9 PM',
+    sendMessage: 'Send a Message',
+    name: 'Name',
+    subject: 'Subject',
+    message: 'Message',
+    sending: 'Sending...',
+    sendMessageBtn: 'Send Message',
+    fillAllFields: 'Please fill in all fields before sending.',
+    messageSentSuccess: 'Thank you! Your message has been sent successfully.',
+    messageSendFailed: 'Failed to send message. Please try again later.',
+
+    // 404 Page
+    pageNotFound: 'Page Not Found',
+    pageNotFoundDesc: "The page you are looking for doesn't exist or has been moved.",
+
+    // 500 Page
+    serverError: 'Internal Server Error',
+    serverErrorDesc: 'Something went wrong on our end. Please try again later.',
+
+    // Product Details
+    productNotFound: 'Product not found',
+    inCart: 'In Cart',
+    xInStock: 'in stock',
+
+    // Favorites Page
+    myFavorites: 'My Favorites',
+    itemsSaved: 'items saved',
+    itemSaved: 'item saved',
+    clearAll: 'Clear All',
+    yourWishlistEmpty: 'Your wishlist is empty',
+    exploreAndSave: 'Explore our catalog and click the heart icon to save products you love!',
+    removeFromFavorites: 'Remove from favorites',
+
+    // Orders Page
+    noOrdersYet: 'No orders yet',
+    startShoppingOrders: 'Start shopping and your orders will appear here',
+    order: 'Order',
+    orders: 'orders',
+    orderSingle: 'order',
+    status: 'Status',
+    sort: 'Sort',
+    date: 'Date',
+    items: 'Items',
+    newestFirst: 'Newest First',
+    oldestFirst: 'Oldest First',
+    totalHighLow: 'Total — High to Low',
+    totalLowHigh: 'Total — Low to High',
+    noOrdersWithStatus: 'No orders with status',
+
+    // Checkout
+    contactStep: 'Contact',
+    shippingStep: 'Shipping',
+    paymentStep: 'Payment',
+    reviewStep: 'Review',
+    emailAddress: 'Email address',
+    continueToShipping: 'Continue to Shipping',
+    continueToPayment: 'Continue to Payment',
+    firstName: 'First name',
+    lastName: 'Last name',
+    addressLabel: 'Address',
+    zipCode: 'ZIP code',
+    reviewYourOrder: 'Review your order',
+    shipTo: 'Ship to',
+    paymentCompleted: 'Payment completed successfully',
+    placeOrder: 'Place Order',
+    cartEmpty: 'Your cart is empty',
+    addItemsBeforeCheckout: 'Add some items before checking out',
+    loadingCheckout: 'Loading checkout...',
+    preparingPayment: 'Preparing payment...',
+    orderSummary: 'Order Summary',
+
+    // Order Confirmation
+    orderPlaced: 'Order Placed!',
+    thankYouPurchase: 'Thank you for your purchase. A confirmation has been sent to',
+    shippingTo: 'Shipping to',
+    viewMyOrder: 'View My Order',
+    allOrders: 'All Orders',
+  },
+
+  vi: {
+    // Điều hướng & tiêu đề
+    appTitle: 'VMart',
+    catalog: 'Danh mục',
+    about: 'Về chúng tôi',
+    contact: 'Liên hệ',
+    login: 'Đăng nhập',
+    register: 'Đăng ký',
+    logout: 'Đăng xuất',
+    profile: 'Hồ sơ',
+    myOrders: 'Đơn hàng của tôi',
+    wishlist: 'Danh sách yêu thích',
+    favorites: 'Yêu thích',
+    cart: 'Giỏ hàng',
+    adminDashboard: 'Trang quản trị',
+    vendorDashboard: 'Trang người bán',
+    dashboard: 'Bảng điều khiển',
+    language: 'Ngôn ngữ',
+    searchPlaceholder: 'Tìm kiếm sản phẩm...',
+    search: 'Tìm kiếm',
+    welcomeUser: 'Xin chào',
+
+    // Sản phẩm & danh mục
+    productsTitle: 'Sản phẩm của chúng tôi',
+    allProducts: 'Tất cả sản phẩm',
+    sortBy: 'Sắp xếp theo',
+    sortAlphabetical: 'Theo bảng chữ cái',
+    sortPriceLowHigh: 'Giá: Thấp đến cao',
+    sortPriceHighLow: 'Giá: Cao đến thấp',
+    filterByBrand: 'Thương hiệu',
+    filterByType: 'Danh mục',
+    filterByPrice: 'Khoảng giá',
+    allBrands: 'Tất cả thương hiệu',
+    allTypes: 'Tất cả danh mục',
+    resetFilters: 'Đặt lại bộ lọc',
+    noProductsFound: 'Không tìm thấy sản phẩm phù hợp',
+    price: 'Giá',
+    category: 'Danh mục',
+    brand: 'Thương hiệu',
+    inStock: 'Còn hàng',
+    outOfStock: 'Hết hàng',
+    addToCart: 'Thêm vào giỏ',
+    addingToCart: 'Đang thêm...',
+    viewDetails: 'Xem chi tiết',
+    seller: 'Người bán',
+    description: 'Mô tả',
+    quantity: 'Số lượng',
+
+    // Giỏ hàng
+    cartTitle: 'Giỏ hàng',
+    emptyCartMessage: 'Giỏ hàng của bạn đang trống',
+    emptyCartSubtitle: 'Có vẻ như bạn chưa thêm sản phẩm nào vào giỏ hàng',
+    startShopping: 'Bắt đầu mua sắm',
+    item: 'Sản phẩm',
+    subtotal: 'Tạm tính',
+    deliveryFee: 'Phí giao hàng',
+    total: 'Tổng cộng',
+    checkout: 'Tiến hành thanh toán',
+    remove: 'Xóa',
+    clearCart: 'Xóa giỏ hàng',
+    itemsInCart: 'sản phẩm trong giỏ',
+    freeDelivery: 'Miễn phí giao hàng cho đơn trên 100 USD',
+
+    // Yêu thích
+    favoritesTitle: 'Danh sách yêu thích',
+    emptyFavoritesMessage: 'Danh sách yêu thích đang trống',
+    emptyFavoritesSubtitle: 'Khám phá danh mục và lưu các sản phẩm bạn yêu thích',
+    moveToCart: 'Chuyển vào giỏ',
+
+    // Đơn hàng
+    ordersTitle: 'Lịch sử đơn hàng',
+    orderNumber: 'Mã đơn #',
+    orderDate: 'Ngày',
+    orderStatus: 'Trạng thái',
+    orderTotal: 'Tổng cộng',
+    orderItems: 'Sản phẩm',
+    noOrdersFound: 'Không tìm thấy đơn hàng',
+    statusPending: 'Đang chờ',
+    statusPaymentReceived: 'Đã nhận thanh toán',
+    statusPaymentFailed: 'Thanh toán thất bại',
+    statusShipped: 'Đã giao cho đơn vị vận chuyển',
+
+    // Thanh toán
+    checkoutTitle: 'Thanh toán',
+    shippingAddress: 'Địa chỉ giao hàng',
+    paymentDetails: 'Thông tin thanh toán',
+    fullName: 'Họ và tên',
+    address1: 'Địa chỉ dòng 1',
+    address2: 'Địa chỉ dòng 2',
+    city: 'Thành phố',
+    state: 'Tỉnh / Bang',
+    zip: 'Mã bưu chính',
+    country: 'Quốc gia',
+    submitOrder: 'Đặt hàng',
+    orderSuccessTitle: 'Cảm ơn bạn đã đặt hàng!',
+    orderSuccessSubtitle: 'Đơn hàng đã được đặt thành công và đang được xử lý',
+
+    // Xác thực
+    signInTitle: 'Chào mừng trở lại',
+    signInSubtitle: 'Đăng nhập để truy cập tài khoản',
+    signUpTitle: 'Tạo tài khoản',
+    signUpSubtitle: 'Tham gia VMart để có trải nghiệm mua sắm tốt nhất',
+    email: 'Địa chỉ email',
+    password: 'Mật khẩu',
+    confirmPassword: 'Xác nhận mật khẩu',
+    rememberMe: 'Ghi nhớ tôi',
+    dontHaveAccount: 'Chưa có tài khoản?',
+    alreadyHaveAccount: 'Đã có tài khoản?',
+    signUpNow: 'Đăng ký',
+    signInNow: 'Đăng nhập',
+
+    // Chân trang & dùng chung
+    allRightsReserved: 'Đã đăng ký bản quyền',
+    privacyPolicy: 'Chính sách quyền riêng tư',
+    termsOfService: 'Điều khoản dịch vụ',
+    support: 'Hỗ trợ khách hàng',
+    quickLinks: 'Liên kết nhanh',
+    loading: 'Đang tải...',
+    errorOccurred: 'Đã xảy ra lỗi',
+    save: 'Lưu',
+    cancel: 'Hủy',
+    delete: 'Xóa',
+    edit: 'Chỉnh sửa',
+    discoverProducts: 'Khám phá sản phẩm',
+    browseTechGear: 'Khám phá bộ sưu tập thiết bị công nghệ cao cấp',
+    searchProductsPlaceholder: 'Tìm sản phẩm… (Nhấn Enter để tìm)',
+    showPerPage: 'Hiển thị mỗi trang:',
+    filters: 'Bộ lọc',
+    clearAllFilters: 'Xóa tất cả bộ lọc',
+    tryAdjustingFilters: 'Hãy thử điều chỉnh tìm kiếm hoặc bộ lọc',
+    nameAZ: 'Tên A–Z',
+    nameZA: 'Tên Z–A',
+    done: 'Xong',
+    back: 'Quay lại',
+    backToHome: 'Về trang chủ',
+    continueShopping: 'Tiếp tục mua sắm',
+    browseProducts: 'Xem sản phẩm',
+    viewAll: 'Xem tất cả',
+    viewAllProducts: 'Xem tất cả sản phẩm',
+    change: 'Thay đổi',
+    tryAgain: 'Thử lại',
+    clearFilter: 'Xóa bộ lọc',
+    all: 'Tất cả',
+    free: 'Miễn phí',
+    discount: 'Giảm giá',
+    shipping: 'Giao hàng',
+    securedBySepay: 'Thanh toán được xác nhận bởi SePay',
+    qty: 'SL',
+
+    // Trang chủ
+    heroTitle: 'Xây dựng bộ máy trong mơ',
+    heroSubtitle: 'Linh kiện PC, laptop và thiết bị ngoại vi cao cấp từ những thương hiệu bạn yêu thích.',
+    shopNow: 'Mua ngay',
+    browseCatalog: 'Xem danh mục',
+    shopByCategory: 'Mua theo danh mục',
+    findWhatYouNeed: 'Tìm chính xác thứ bạn cần',
+    featuredProducts: 'Sản phẩm nổi bật',
+    handPicked: 'Được tuyển chọn cho bộ máy tiếp theo của bạn',
+    readyToUpgrade: 'Sẵn sàng nâng cấp?',
+    exploreFullCatalog: 'Khám phá toàn bộ danh mục và tìm linh kiện hoàn hảo cho bộ máy của bạn.',
+    exploreProducts: 'Khám phá sản phẩm',
+    freeShipping: 'Miễn phí vận chuyển',
+    onOrdersOver: 'Cho đơn hàng trên VND500',
+    expertSupport: 'Hỗ trợ chuyên nghiệp',
+    dedicatedHelp: 'Hỗ trợ tận tâm 24/7',
+    securePayment: 'Thanh toán an toàn',
+    protectedCheckout: 'Thanh toán được bảo vệ 100%',
+    easyReturns: 'Đổi trả dễ dàng',
+    returnPolicy: 'Chính sách đổi trả 30 ngày',
+
+    // Danh mục sản phẩm
+    catLaptops: 'Laptop',
+    catDesktops: 'Máy tính để bàn',
+    catGraphicsCards: 'Card đồ họa',
+    catProcessors: 'Bộ vi xử lý',
+    catMemory: 'Bộ nhớ',
+    catStorage: 'Lưu trữ',
+    catMonitors: 'Màn hình',
+    catPeripherals: 'Thiết bị ngoại vi',
+
+    // Giới thiệu
+    aboutTitle: 'Về VMart',
+    aboutSubtitle: 'Lấy cảm hứng từ dòng chảy bất tận của sông Nile, VMart mang đến một sàn thương mại hiện đại dựa trên niềm tin, chất lượng và cộng đồng.',
+    aboutStory1: 'VMart ra đời từ niềm tin rằng mua sắm trực tuyến phải đáng tin cậy như một cái bắt tay. Mang tên sông Nile — mạch sống của Ai Cập — chúng tôi đem nguồn năng lượng ấy đến thương mại điện tử.',
+    aboutStory2: 'Ngay từ đầu, sứ mệnh của chúng tôi rất đơn giản: kết nối mọi người với sản phẩm họ yêu thích, được giao tận tâm và nhanh chóng. Mỗi đơn hàng là một lời hứa được thực hiện.',
+    ourValues: 'Giá trị của chúng tôi',
+    qualityFirst: 'Chất lượng hàng đầu',
+    qualityFirstDesc: 'Mỗi sản phẩm đều được tuyển chọn để đáp ứng những tiêu chuẩn cao nhất.',
+    communityDriven: 'Hướng đến cộng đồng',
+    communityDrivenDesc: 'Được xây dựng bởi cộng đồng, vì cộng đồng — tiếng nói của bạn định hình VMart.',
+    fastReliable: 'Nhanh chóng & Tin cậy',
+    fastReliableDesc: 'Giao hàng nhanh chóng với tính năng theo dõi thời gian thực ở mọi chặng.',
+    secureShoppingTitle: 'Mua sắm an toàn',
+    secureShoppingDesc: 'Bảo mật cấp doanh nghiệp bảo vệ mọi giao dịch và dữ liệu của bạn.',
+
+    // Công nghệ & kiến trúc
+    techTitle: 'Công nghệ & Kiến trúc',
+    techSubtitle: 'Được xây dựng bằng công cụ hiện đại và các phương pháp tốt nhất về hiệu năng, khả năng mở rộng và bảo trì.',
+    backend: 'Backend',
+    frontend: 'Frontend',
+    databases: 'Cơ sở dữ liệu & Lưu trữ',
+    architecture: 'Kiến trúc & Mẫu thiết kế',
+    versionControl: 'Quản lý phiên bản & Triển khai',
+    techCSharp: 'Ngôn ngữ lập trình backend',
+    techDotNet: 'Nền tảng và môi trường chạy backend',
+    techAspWebApi: 'Phát triển REST API',
+    techEf: 'ORM và truy cập cơ sở dữ liệu',
+    techIdentity: 'Xác thực, phân quyền và quản lý người dùng',
+    techMediatR: 'Triển khai giao tiếp CQRS ở tầng ứng dụng',
+    techFluentValidation: 'Xác thực yêu cầu và mô hình phía backend',
+    techHangfire: 'Xử lý tác vụ nền',
+    techSignalR: 'Giao tiếp và thông báo thời gian thực',
+    techSmtp: 'Gửi email',
+    techSerilog: 'Ghi log ứng dụng có cấu trúc',
+    techSepay: 'Thanh toán VietQR và tự động xác nhận chuyển khoản',
+    techReact: 'Thư viện giao diện frontend',
+    techTypeScript: 'Ngôn ngữ lập trình frontend',
+    techVite: 'Công cụ phát triển và build frontend',
+    techRedux: 'Quản lý trạng thái phía client',
+    techRtkQuery: 'Truy xuất API, bộ nhớ đệm và quản lý trạng thái máy chủ',
+    techReactRouter: 'Định tuyến phía client',
+    techMui: 'Framework thành phần giao diện và định kiểu',
+    techReactHookForm: 'Quản lý biểu mẫu và trạng thái biểu mẫu',
+    techZod: 'Xác thực schema phía client',
+    techSqlServer: 'Cơ sở dữ liệu quan hệ chính',
+    techRedis: 'Bộ nhớ đệm và lưu trữ tạm thời tốc độ cao',
+    techElasticsearch: 'Lưu trữ và tìm kiếm dữ liệu log',
+    techCleanArch: 'Phân tách trách nhiệm và cấu trúc ứng dụng dễ bảo trì',
+    techCqrs: 'Tách biệt thao tác đọc và ghi',
+    techRepoPattern: 'Trừu tượng hóa các thao tác truy cập dữ liệu',
+    techUowPattern: 'Quản lý các thao tác cơ sở dữ liệu liên quan như một giao dịch',
+    techResultPattern: 'Xử lý nhất quán kết quả thành công và thất bại',
+    techOptionsPattern: 'Cấu hình ứng dụng có kiểu dữ liệu chặt chẽ',
+    techDi: 'Quản lý phụ thuộc và cải thiện khả năng kiểm thử',
+    techGit: 'Quản lý phiên bản',
+    techGithub: 'Lưu trữ và cộng tác mã nguồn',
+    techDocker: 'Đóng gói ứng dụng bằng container',
+    techSmarterAsp: 'Lưu trữ và triển khai web',
+    techCtaDesc: 'Khám phá toàn bộ công nghệ vận hành VMart — từ backend đến frontend, cơ sở dữ liệu đến kiến trúc.',
+    viewTechnologies: 'Xem công nghệ',
+    backToAbout: 'Quay lại trang giới thiệu',
+    viewProducts: 'Xem sản phẩm',
+    techBuiltWith: 'Được xây dựng bằng công nghệ hiện đại',
+    techBuiltWithDesc: 'VMart được phát triển bằng công nghệ tiên tiến để mang lại hiệu năng, khả năng mở rộng và trải nghiệm liền mạch.',
+    dbDiagramTitle: 'Sơ đồ cơ sở dữ liệu',
+    dbDiagramSubtitle: 'Xem tương tác tất cả bảng, cột và mối quan hệ giữa chúng',
+
+    // Liên hệ
+    contactTitle: 'Liên hệ với chúng tôi',
+    contactSubtitle: 'Bạn có câu hỏi, góp ý hay chỉ muốn gửi lời chào? Chúng tôi rất mong nhận được tin từ bạn.',
+    contactAddress: 'Địa chỉ',
+    contactAddressValue: 'Nile City Tower, Cairo, Ai Cập',
+    contactEmail: 'Email',
+    contactPhone: 'Điện thoại',
+    contactHours: 'Giờ làm việc',
+    contactHoursValue: 'Thứ Bảy–Thứ Năm, 9:00–21:00',
+    sendMessage: 'Gửi tin nhắn',
+    name: 'Tên',
+    subject: 'Chủ đề',
+    message: 'Tin nhắn',
+    sending: 'Đang gửi...',
+    sendMessageBtn: 'Gửi tin nhắn',
+    fillAllFields: 'Vui lòng điền đầy đủ các trường trước khi gửi.',
+    messageSentSuccess: 'Cảm ơn bạn! Tin nhắn đã được gửi thành công.',
+    messageSendFailed: 'Không thể gửi tin nhắn. Vui lòng thử lại sau.',
+
+    // Trang lỗi
+    pageNotFound: 'Không tìm thấy trang',
+    pageNotFoundDesc: 'Trang bạn đang tìm không tồn tại hoặc đã được chuyển.',
+    serverError: 'Lỗi máy chủ nội bộ',
+    serverErrorDesc: 'Đã xảy ra sự cố từ phía chúng tôi. Vui lòng thử lại sau.',
+
+    // Chi tiết sản phẩm
+    productNotFound: 'Không tìm thấy sản phẩm',
+    inCart: 'Trong giỏ hàng',
+    xInStock: 'còn hàng',
+
+    // Trang yêu thích
+    myFavorites: 'Mục yêu thích',
+    itemsSaved: 'sản phẩm đã lưu',
+    itemSaved: 'sản phẩm đã lưu',
+    clearAll: 'Xóa tất cả',
+    yourWishlistEmpty: 'Danh sách yêu thích đang trống',
+    exploreAndSave: 'Khám phá danh mục và nhấn biểu tượng trái tim để lưu sản phẩm bạn yêu thích!',
+    removeFromFavorites: 'Xóa khỏi mục yêu thích',
+
+    // Trang đơn hàng
+    noOrdersYet: 'Chưa có đơn hàng',
+    startShoppingOrders: 'Bắt đầu mua sắm và đơn hàng sẽ xuất hiện tại đây',
+    order: 'Đơn hàng',
+    orders: 'đơn hàng',
+    orderSingle: 'đơn hàng',
+    status: 'Trạng thái',
+    sort: 'Sắp xếp',
+    date: 'Ngày',
+    items: 'Sản phẩm',
+    newestFirst: 'Mới nhất trước',
+    oldestFirst: 'Cũ nhất trước',
+    totalHighLow: 'Tổng tiền — Cao đến thấp',
+    totalLowHigh: 'Tổng tiền — Thấp đến cao',
+    noOrdersWithStatus: 'Không có đơn hàng với trạng thái',
+
+    // Các bước thanh toán
+    contactStep: 'Liên hệ',
+    shippingStep: 'Giao hàng',
+    paymentStep: 'Thanh toán',
+    reviewStep: 'Kiểm tra',
+    emailAddress: 'Địa chỉ email',
+    continueToShipping: 'Tiếp tục đến giao hàng',
+    continueToPayment: 'Tiếp tục đến thanh toán',
+    firstName: 'Tên',
+    lastName: 'Họ',
+    addressLabel: 'Địa chỉ',
+    zipCode: 'Mã bưu chính',
+    reviewYourOrder: 'Kiểm tra đơn hàng',
+    shipTo: 'Giao đến',
+    paymentCompleted: 'Thanh toán thành công',
+    placeOrder: 'Đặt hàng',
+    cartEmpty: 'Giỏ hàng của bạn đang trống',
+    addItemsBeforeCheckout: 'Hãy thêm sản phẩm trước khi thanh toán',
+    loadingCheckout: 'Đang tải trang thanh toán...',
+    preparingPayment: 'Đang chuẩn bị thanh toán...',
+    orderSummary: 'Tóm tắt đơn hàng',
+
+    // Xác nhận đơn hàng
+    orderPlaced: 'Đã đặt hàng!',
+    thankYouPurchase: 'Cảm ơn bạn đã mua hàng. Thông tin xác nhận đã được gửi đến',
+    shippingTo: 'Giao hàng đến',
+    viewMyOrder: 'Xem đơn hàng của tôi',
+    allOrders: 'Tất cả đơn hàng',
+  },
+};
+
+const LISTENERS = new Set<() => void>();
+
+export function getStoredLanguage(): SupportedLanguage {
+  const stored = localStorage.getItem('language') as SupportedLanguage;
+  if (stored && (stored === 'en' || stored === 'vi')) {
+    return stored;
+  }
+  return 'en';
+}
+
+export function setStoredLanguage(lang: SupportedLanguage) {
+  localStorage.setItem('language', lang);
+  const langConfig = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
+  document.documentElement.lang = lang;
+  document.documentElement.dir = langConfig.dir;
+  LISTENERS.forEach((listener) => listener());
+}
+
+export function useTranslation() {
+  const [lang, setLang] = useState<SupportedLanguage>(getStoredLanguage());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLang(getStoredLanguage());
+    };
+    LISTENERS.add(handleUpdate);
+
+    // Apply document direction initially
+    const langConfig = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
+    document.documentElement.lang = lang;
+    document.documentElement.dir = langConfig.dir;
+
+    return () => {
+      LISTENERS.delete(handleUpdate);
+    };
+  }, [lang]);
+
+  const t = (key: string): string => {
+    return translations[lang]?.[key] ?? translations.en[key] ?? key;
+  };
+
+  const changeLanguage = (newLang: SupportedLanguage) => {
+    setStoredLanguage(newLang);
+  };
+
+  return { t, currentLang: lang, changeLanguage, languages: LANGUAGES };
+}

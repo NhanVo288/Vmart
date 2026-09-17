@@ -1,0 +1,27 @@
+<Solution>
+  <StartupProject>RestoreAPI.Presentation\RestoreAPI.csproj</StartupProject>
+  <Project Path="RestoreAPI.Presentation\RestoreAPI.csproj">
+    <ProjectConfiguration>
+      <ActiveCfg>Debug|Any CPU</ActiveCfg>
+      <Build>True</Build>
+    </ProjectConfiguration>
+  </Project>
+  <Project Path="RestoreAPI.Domain\RestoreAPI.Domain.csproj">
+    <ProjectConfiguration>
+      <ActiveCfg>Debug|Any CPU</ActiveCfg>
+      <Build>True</Build>
+    </ProjectConfiguration>
+  </Project>
+  <Project Path="RestoreAPI.Application\RestoreAPI.Application.csproj">
+    <ProjectConfiguration>
+      <ActiveCfg>Debug|Any CPU</ActiveCfg>
+      <Build>True</Build>
+    </ProjectConfiguration>
+  </Project>
+  <Project Path="RestoreAPI.Infrastructure\RestoreAPI.Infrastructure.csproj">
+    <ProjectConfiguration>
+      <ActiveCfg>Debug|Any CPU</ActiveCfg>
+      <Build>True</Build>
+    </ProjectConfiguration>
+  </Project>
+</Solution>
