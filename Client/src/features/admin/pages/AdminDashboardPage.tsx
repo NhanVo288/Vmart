@@ -19,7 +19,7 @@ import ErrorOutlineIcon from "@mui/icons-material/Error";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 import { useThemeMode } from "../../../providers/ThemeProvider";
-import { GRADIENT, GRADIENT_DARK } from "../../../config/constants";
+import { GRADIENT, GRADIENT_DARK, HANGFIRE_URL } from "../../../config/constants";
 import { LoadingSkeleton } from "../../../components/ui/LoadingSkeleton";
 
 
@@ -326,7 +326,7 @@ export function AdminDashboardPage() {
                 fullWidth
                 startIcon={<WorkHistoryIcon />}
                 endIcon={<OpenInNewIcon fontSize="small" />}
-                onClick={() => window.open("/hangfire", "_blank", "noopener,noreferrer")}
+                onClick={() => window.open(HANGFIRE_URL, "_blank", "noopener,noreferrer")}
                 sx={{
                   justifyContent: "space-between",
                   borderRadius: 2,
@@ -373,7 +373,7 @@ export function AdminDashboardPage() {
               variant="contained"
               fullWidth
               endIcon={<OpenInNewIcon fontSize="small" />}
-              onClick={() => window.open("/hangfire", "_blank", "noopener,noreferrer")}
+              onClick={() => window.open(HANGFIRE_URL, "_blank", "noopener,noreferrer")}
               sx={{
                 background: mode === "dark" ? GRADIENT_DARK : GRADIENT,
                 color: "#fff",

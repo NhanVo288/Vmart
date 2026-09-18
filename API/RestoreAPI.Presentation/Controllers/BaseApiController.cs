@@ -19,24 +19,38 @@ namespace RestoreAPI.Controllers
         protected ILocalizationService LocalizationService =>
             _localizationService ??= HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
 
-        protected static CookieOptions BuildCookieOptions() => new CookieOptions
+        private SameSiteMode BuyerCookieSameSite
         {
-            HttpOnly = true,
-            IsEssential = true,
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTime.UtcNow.AddDays(30),
-            Path = "/"
-        };
+            get
+            {
+                var configuredValue = HttpContext.RequestServices
+                    .GetRequiredService<IConfiguration>()["Cookies:BuyerIdSameSite"];
 
-        protected void DeleteBuyerIdCookie()
+                return Enum.TryParse<SameSiteMode>(configuredValue, true, out var sameSite)
+                    ? sameSite
+                    : SameSiteMode.Lax;
+            }
+        }
+
+        protected CookieOptions BuildCookieOptions()
         {
-            Response.Cookies.Delete("buyerId", new CookieOptions
+            var sameSite = BuyerCookieSameSite;
+            return new CookieOptions
             {
                 HttpOnly = true,
                 IsEssential = true,
-                SameSite = SameSiteMode.Lax,
+                SameSite = sameSite,
+                Secure = sameSite == SameSiteMode.None || Request.IsHttps,
+                Expires = DateTime.UtcNow.AddDays(30),
                 Path = "/"
-            });
+            };
+        }
+
+        protected void DeleteBuyerIdCookie()
+        {
+            var options = BuildCookieOptions();
+            options.Expires = null;
+            Response.Cookies.Delete("buyerId", options);
         }
 
         protected async Task TransferAnonymousBuyerAsync(

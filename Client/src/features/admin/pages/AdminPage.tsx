@@ -37,7 +37,7 @@ import { logout } from "../../../stores/authSlice";
 import { useLogoutMutation } from "../../../stores/authApi";
 import { baseApi } from "../../../stores/baseApi";
 import { useThemeMode } from "../../../providers/ThemeProvider";
-import { GRADIENT, GRADIENT_DARK } from "../../../config/constants";
+import { GRADIENT, GRADIENT_DARK, HANGFIRE_URL } from "../../../config/constants";
 import { AdminNotificationBell } from "../components/AdminNotificationBell";
 
 const DRAWER_WIDTH = 260;
@@ -67,7 +67,7 @@ const navItems: NavItem[] = [
   { label: "Users", path: "/admin/users", icon: <PeopleIcon />, end: false },
   { label: "Logs", path: "/admin/logs", icon: <ReceiptLongIcon />, end: false },
   { label: "Health", path: "/admin/health-checks", icon: <HealthAndSafetyIcon />, end: false },
-  { label: "Background Jobs", path: "/hangfire", icon: <WorkHistoryIcon />, end: false, external: true },
+  { label: "Background Jobs", path: HANGFIRE_URL, icon: <WorkHistoryIcon />, end: false, external: true },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {

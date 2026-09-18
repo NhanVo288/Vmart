@@ -37,6 +37,11 @@
     <Compile Remove="..\RestoreAPI.Infrastructure\**\*.cs" />
   </ItemGroup>
 
+  <!-- The React application is deployed separately from the API. -->
+  <ItemGroup>
+    <Content Remove="wwwroot\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RestoreAPI.Application\RestoreAPI.Application.csproj" />
     <ProjectReference Include="..\RestoreAPI.Infrastructure\RestoreAPI.Infrastructure.csproj" />

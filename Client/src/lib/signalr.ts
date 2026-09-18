@@ -1,15 +1,13 @@
 import { HubConnectionBuilder, HubConnection, LogLevel } from "@microsoft/signalr";
-import { API_BASE_URL } from "../config/constants";
+import { API_ORIGIN } from "../config/constants";
 
 let connection: HubConnection | null = null;
-
-const HUB_BASE_URL = API_BASE_URL.replace(/\/api$/, "");
 
 export function getProductHubConnection(): HubConnection {
   if (connection) return connection;
 
   connection = new HubConnectionBuilder()
-    .withUrl(`${HUB_BASE_URL}/hubs/products`, {
+    .withUrl(`${API_ORIGIN}/hubs/products`, {
       accessTokenFactory: () => localStorage.getItem("token") ?? "",
     })
     .withAutomaticReconnect()
