@@ -2,7 +2,11 @@
 
 VMart là hệ thống thương mại điện tử full-stack gồm REST API viết bằng **ASP.NET Core 10** và SPA viết bằng **React 19 + TypeScript**. Dự án hỗ trợ cửa hàng cho khách mua, khu vực quản trị, cổng dành cho nhà bán hàng, thanh toán chuyển khoản **SePay/VietQR**, thông báo thời gian thực bằng SignalR, tác vụ nền bằng Hangfire và giao diện song ngữ Anh/Việt.
 
-Bản build của frontend được đặt trong `API/RestoreAPI.Presentation/wwwroot` và do API phục vụ. Vì vậy khi triển khai production, toàn bộ ứng dụng có thể chạy từ một ASP.NET Core host.
+Ở môi trường phát triển, frontend và API có thể chạy riêng. Với bộ Docker
+production trong repository, React được build thành static files và phục vụ bởi
+Nginx; Nginx đồng thời reverse proxy `/api`, `/hubs`, `/hangfire` và `/health`
+tới ASP.NET Core API. Xem [README triển khai production](DEPLOYMENT.md) để biết
+toàn bộ luồng và lý do của từng bước.
 
 ## Tính năng chính
 
@@ -13,32 +17,37 @@ Bản build của frontend được đặt trong `API/RestoreAPI.Presentation/ww
 - Lịch sử đơn hàng và chi tiết đơn hàng của người mua.
 - Quản trị sản phẩm, đơn hàng, người dùng, vai trò, thông báo, log và health check.
 - Nhà bán hàng quản lý sản phẩm của mình, xem đơn hàng và số liệu tổng quan.
+- Người dùng có thể đăng ký nhận email khi sản phẩm hết hàng được nhập lại.
 - Upload ảnh lên Cloudinary; cache Redis có cơ chế quay về database khi Redis không khả dụng.
-- SignalR cập nhật hoạt động sản phẩm cho Admin/Vendor theo thời gian thực.
-- Hangfire dọn token đã thu hồi và giỏ hàng ẩn danh không còn sử dụng.
-- Serilog ghi log ra console/file/Elasticsearch; Kibana dùng để quan sát log.
+- SignalR cập nhật sản phẩm và thông báo quản trị cho Admin/Vendor theo thời gian thực.
+- Hangfire chạy tác vụ dọn token đã thu hồi lúc 03:00 và giỏ hàng ẩn danh cũ lúc 04:00 theo múi giờ Việt Nam.
+- Serilog ghi structured log ra console; trang quản trị truy vấn log từ Elasticsearch và Kibana có thể được bật để quan sát dữ liệu index.
 
 ## Kiến trúc tổng thể
 
 ```text
 Trình duyệt
    │
-   ├── React SPA (Redux Toolkit, RTK Query, MUI)
-   │       │ HTTP + JWT + buyerId cookie
-   │       │ SignalR
-   │       ▼
-   └── ASP.NET Core Presentation
-           │
-           ├── Application: CQRS, MediatR, validation, Result pattern
-           ├── Domain: entity, aggregate, enum, factory
-           └── Infrastructure
-                   ├── SQL Server / EF Core / Identity
-                   ├── Redis
-                   ├── SePay / VietQR
-                   ├── Cloudinary / SMTP
-                   ├── Hangfire
-                   └── Elasticsearch
+   ▼
+React SPA (Redux Toolkit, RTK Query, MUI)
+   │ HTTP + JWT + buyerId cookie + SignalR
+   ▼
+ASP.NET Core Presentation
+   │
+   ├── Application: CQRS, MediatR, validation, Result pattern
+   ├── Domain: entity, aggregate, enum, factory
+   └── Infrastructure
+           ├── SQL Server / EF Core / Identity / Hangfire
+           ├── Redis
+           ├── SePay / VietQR
+           ├── Cloudinary / SMTP
+           └── Elasticsearch
 ```
+
+Khi phát triển, Vite và API chạy thành hai process. Khi deploy bằng
+`docker-compose.prod.yml`, trình duyệt chỉ kết nối tới Nginx: Nginx phục vụ
+bundle React và proxy các đường dẫn backend tới container API. SQL Server,
+Redis và Elasticsearch chỉ giao tiếp qua mạng nội bộ Docker.
 
 Backend áp dụng Clean Architecture theo chiều phụ thuộc:
 
@@ -51,7 +60,7 @@ Presentation ──► Application ◄── Infrastructure
 - `Domain`: mô hình nghiệp vụ độc lập như Product, Basket, Order, Favorite và quy tắc chuyển trạng thái đơn.
 - `Application`: use case theo CQRS, DTO, validation, interface và pipeline của MediatR.
 - `Infrastructure`: EF Core, repository, Identity/JWT và các tích hợp bên ngoài.
-- `Presentation`: controller, middleware, Swagger, SignalR, Hangfire dashboard và static SPA.
+- `Presentation`: API host, controller, middleware, Swagger, SignalR, health check và Hangfire dashboard.
 
 ## Cấu trúc thư mục
 
@@ -61,13 +70,18 @@ Restore_System/
 │   ├── RestoreAPI.Domain/          # Entity, aggregate và quy tắc nghiệp vụ
 │   ├── RestoreAPI.Application/     # CQRS, DTO, validation và interface
 │   ├── RestoreAPI.Infrastructure/  # Database, repository và dịch vụ tích hợp
-│   ├── RestoreAPI.Presentation/    # API host, controller, middleware, wwwroot
+│   ├── RestoreAPI.Presentation/    # API host, controller, middleware, health check
+│   ├── Dockerfile                  # Multi-stage build cho API
 │   └── README.md                   # Tài liệu backend
 ├── Client/
 │   ├── src/                        # React SPA theo feature
+│   ├── Dockerfile                  # Build Vite rồi phục vụ bằng Nginx
+│   ├── nginx.conf                  # SPA fallback và reverse proxy
 │   └── README.md                   # Tài liệu frontend
 ├── docs/                           # Postman collection
-├── docker-compose.yml              # Redis, Elasticsearch và Kibana
+├── docker-compose.yml              # Dịch vụ hỗ trợ cho môi trường phát triển
+├── docker-compose.prod.yml         # Toàn bộ stack production
+├── DEPLOYMENT.md                   # README triển khai production chi tiết
 └── .env.example                    # Biến môi trường mẫu cho Docker
 ```
 
@@ -87,6 +101,20 @@ Restore_System/
 2. Danh sách/bộ lọc sản phẩm được cache trong Redis. Khi Redis lỗi, API đọc trực tiếp từ SQL Server.
 3. Thêm, sửa số lượng hoặc xóa sản phẩm làm thay đổi aggregate `Basket` tương ứng với `buyerId`.
 4. Trước khi thanh toán, người dùng phải đăng nhập; route `/checkout` được bảo vệ bởi `PrivateRoute`.
+
+### Route giao diện
+
+| Nhóm | Route chính |
+|---|---|
+| Public | `/`, `/products`, `/items/:id`, `/cart`, `/favorites`, `/about`, `/technologies`, `/contact` |
+| Xác thực public | `/login`, `/register`, `/forgot-password`, `/reset-password` |
+| Người dùng đã đăng nhập | `/profile`, `/checkout`, `/orders`, `/orders/:id` |
+| Admin | `/admin`, `/admin/products`, `/admin/orders`, `/admin/users`, `/admin/logs`, `/admin/health-checks` |
+| Vendor | `/vendor`, `/vendor/products`, `/vendor/orders` |
+
+`PrivateRoute`, `AdminRoute` và `VendorRoute` bảo vệ các nhóm route tương ứng.
+Nginx dùng SPA fallback nên truy cập trực tiếp một deep link vẫn trả về
+`index.html` để React Router xử lý.
 
 ## Luồng thanh toán SePay/VietQR
 
@@ -176,7 +204,7 @@ SePay ──► webhook ──► xác thực & đối soát ──► transacti
 ## Yêu cầu môi trường
 
 - .NET 10 SDK.
-- Node.js bản LTS hiện hành và npm.
+- Node.js 24 và npm (cùng major version với image build frontend).
 - SQL Server (LocalDB hoặc một SQL Server khác).
 - Docker Desktop nếu muốn chạy Redis, Elasticsearch và Kibana bằng Compose.
 - Tài khoản/cấu hình SePay để kiểm thử webhook thanh toán thực tế.
@@ -198,7 +226,12 @@ Thiết lập các nhóm cấu hình trong `API/RestoreAPI.Presentation/appsetti
 - `ConnectionStrings:DefaultConnection`, `ConnectionStrings:Redis`.
 - `JWT`.
 - `SepaySettings`: ngân hàng, số tài khoản, chủ tài khoản, tiền tố mã thanh toán, QR base URL và webhook API key.
-- `CloudinarySettings`, `EmailSettings`, `Elasticsearch`, `Cleanup`, `cors`.
+- `CloudinarySettings`, `EmailSettings`, `Elasticsearch`, `Cleanup`, `Cors`.
+
+`appsettings*.json` đang được Git bỏ qua vì có thể chứa secret. Máy phát triển
+phải tự cung cấp file cấu hình hoặc dùng User Secrets/biến môi trường. Với key
+lồng nhau trong biến môi trường, dùng hai dấu gạch dưới, ví dụ
+`ConnectionStrings__DefaultConnection` và `Cors__AllowedOrigins__0`.
 
 Không commit secret thật vào repository. Với môi trường local, có thể dùng:
 
@@ -210,38 +243,53 @@ dotnet user-secrets set "SepaySettings:WebhookApiKey" "<api-key>"
 ### 3. Chạy API
 
 ```bash
-cd API/RestoreAPI.Presentation
-dotnet restore
-dotnet run --launch-profile https
+dotnet restore API/RestoreAPI.Presentation/RestoreAPI.csproj
+dotnet run --project API/RestoreAPI.Presentation/RestoreAPI.csproj --launch-profile https
 ```
 
-- API/SPA: `https://localhost:7255` (HTTP: `http://localhost:5240`).
-- Swagger: `https://localhost:7255/swagger`.
-- Hangfire: `https://localhost:7255/hangfire`.
-- Health check: `/health` và `/health/ready`.
+- API: `http://localhost:7255` (đồng thời bind `http://localhost:5240` theo launch profile hiện tại).
+- Swagger: `http://localhost:7255/swagger`.
+- Hangfire: `http://localhost:7255/hangfire`.
+- Health check: `http://localhost:7255/health` và `/health/ready`.
+
+API không phục vụ React SPA. Khi phát triển, mở frontend ở cổng 3000; khi chạy
+Docker production, Nginx là entry point duy nhất của cả frontend và API.
 
 Khi khởi động, `DbInitializer` tự áp dụng migration và seed role/user/sản phẩm mẫu theo cấu hình hiện tại.
 
 ### 4. Chạy frontend
 
 ```bash
-cd Client
-npm install
-npm run dev
+npm ci --prefix Client
+npm --prefix Client run dev
 ```
 
-Vite chạy tại `https://localhost:3000`. `VITE_API_BASE_URL` mặc định trỏ tới API local; có thể ghi đè trong `Client/.env`.
+Vite chạy tại `http://localhost:3000`. `VITE_API_BASE_URL` mặc định trỏ tới API local; có thể ghi đè trong `Client/.env`.
 
-### 5. Build production
+### 5. Build frontend thủ công
 
 ```bash
-cd Client
-npm run build
-cd ../API/RestoreAPI.Presentation
-dotnet run --launch-profile https
+npm ci --prefix Client
+npm --prefix Client run build
 ```
 
-`npm run build` chạy TypeScript build rồi ghi SPA vào `wwwroot`. Sau đó truy cập `https://localhost:7255` để dùng cả frontend và API cùng origin.
+`npm run build` tạo static bundle trong `Client/dist`. Đây là bước kiểm tra build
+cục bộ; luồng production dùng multi-stage Docker build và Nginx, được mô tả tại
+[DEPLOYMENT.md](DEPLOYMENT.md).
+
+### 6. Chạy toàn bộ stack production bằng Docker
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.prod.yml config --quiet
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Trên PowerShell, dùng `Copy-Item .env.example .env` thay cho lệnh `cp`. Trước khi
+chạy, phải thay ít nhất `MSSQL_SA_PASSWORD`, `JWT_KEY` và `PUBLIC_ORIGIN` trong
+`.env`. Quy trình chuẩn bị máy chủ, giải thích kiến trúc, HTTPS/domain, kiểm tra
+sau deploy, backup và rollback nằm trong
+[README triển khai production](DEPLOYMENT.md).
 
 ## Cấu hình webhook SePay khi phát triển
 
@@ -257,17 +305,16 @@ Khi chạy local, cần dùng tunnel HTTPS hoặc môi trường staging. Cấu 
 
 ```bash
 # Frontend
-cd Client
-npm run lint
-npm run build
+npm --prefix Client run lint
+npm --prefix Client run build
 
 # Backend
-cd API
-dotnet build Restore.slnx
+dotnet build API/Restore.slnx
 ```
 
 ## Tài liệu chi tiết
 
+- [`DEPLOYMENT.md`](DEPLOYMENT.md): luồng deploy production, lý do từng bước, vận hành và rollback.
 - [`API/README.md`](API/README.md): kiến trúc, endpoint và cấu hình backend.
 - [`Client/README.md`](Client/README.md): cấu trúc frontend, route, state và build.
 - `docs/*.postman_collection.json`: các Postman collection có sẵn.

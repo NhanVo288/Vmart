@@ -2,7 +2,10 @@
 
 Frontend của VMart là SPA thương mại điện tử viết bằng **React 19**, **TypeScript 6** và **Vite 8**. Giao diện dùng MUI, state/API cache dùng Redux Toolkit và RTK Query, hỗ trợ tiếng Anh/tiếng Việt, thanh toán SePay/VietQR và khu vực riêng cho Admin/Vendor.
 
-Bản build production được ghi thẳng vào `../API/RestoreAPI.Presentation/wwwroot/` để ASP.NET Core phục vụ cùng origin.
+Vite build frontend vào `Client/dist`. Trong production, `Client/Dockerfile` copy
+bundle này sang image Nginx; Nginx phục vụ SPA và reverse proxy `/api`, `/hubs`,
+`/hangfire`, `/health` tới API. API không trực tiếp phục vụ frontend. Runbook AWS
+EC2 nằm tại [`../DEPLOYMENT.md`](../DEPLOYMENT.md).
 
 ## Công nghệ chính
 
@@ -48,6 +51,8 @@ Client/
 │   ├── types/                    # Kiểu dữ liệu theo domain
 │   └── main.tsx                  # Điểm vào ứng dụng
 ├── package.json
+├── Dockerfile                    # Multi-stage build Node → Nginx
+├── nginx.conf                    # SPA fallback, static cache và API/WebSocket proxy
 ├── vite.config.ts
 └── README.md
 ```
@@ -82,11 +87,15 @@ Client/
 
 ### Admin
 
-Các route `/admin`, `/admin/products`, `/admin/orders`, `/admin/users`, `/admin/logs` và `/admin/health-checks` được bảo vệ bởi `AdminRoute`.
+Các route `/admin`, `/admin/products`, `/admin/products/new`,
+`/admin/products/:id/edit`, `/admin/orders`, `/admin/users`, `/admin/logs` và
+`/admin/health-checks` được bảo vệ bởi `AdminRoute`.
 
 ### Vendor
 
-Các route `/vendor`, `/vendor/products` và `/vendor/orders` được bảo vệ bởi `VendorRoute`. Vendor chỉ thao tác trên dữ liệu thuộc phạm vi của mình do backend kiểm soát.
+Các route `/vendor`, `/vendor/products`, `/vendor/products/new`,
+`/vendor/products/:id/edit` và `/vendor/orders` được bảo vệ bởi `VendorRoute`.
+Vendor chỉ thao tác trên dữ liệu thuộc phạm vi của mình do backend kiểm soát.
 
 ## Quản lý state và gọi API
 
@@ -155,37 +164,49 @@ Client không tự tạo đơn và không tự xác nhận đã thanh toán. Bac
 Tạo `Client/.env` nếu cần ghi đè API URL:
 
 ```env
-VITE_API_BASE_URL=https://localhost:7255/api
+VITE_API_BASE_URL=http://localhost:7255/api
 ```
 
 Đây là biến frontend công khai, không đặt secret hoặc API key riêng tư trong biến có tiền tố `VITE_`.
 
+Nếu không khai báo, source mặc định dùng `http://localhost:7255/api`. Trong
+Docker production, build argument đặt giá trị thành `/api` để trình duyệt gọi
+cùng origin qua Nginx. Đây là biến build-time; thay đổi nó yêu cầu build lại
+frontend.
+
 Thiết lập đáng chú ý trong `vite.config.ts`:
 
-- Dev server chạy cổng `3000` và dùng chứng chỉ do `vite-plugin-mkcert` tạo.
-- Build output là `../API/RestoreAPI.Presentation/wwwroot/` và thư mục cũ được xóa trước khi build.
+- Dev server chạy HTTP ở cổng `3000`.
+- Build output là `Client/dist` và thư mục output cũ được xóa trước khi build.
 - Alias MUI styled engine sang styled-components.
 - React Compiler được bật qua Babel plugin.
 
 ## Chạy dự án
 
-Yêu cầu Node.js LTS và backend đang chạy.
+Yêu cầu Node.js 24, npm và backend đang chạy tại URL cấu hình.
 
 ```bash
-cd Client
-npm install
-npm run dev
+npm ci --prefix Client
+npm --prefix Client run dev
 ```
 
-Truy cập `https://localhost:3000`.
+Các lệnh trên chạy từ thư mục gốc repository. Truy cập
+`http://localhost:3000`.
 
 ### Build production
 
 ```bash
-npm run build
+npm --prefix Client run build
 ```
 
-Sau khi build, chạy API và truy cập `https://localhost:7255`; ASP.NET Core sẽ phục vụ SPA từ `wwwroot`.
+Artifact được tạo trong `Client/dist`. Có thể kiểm tra bằng:
+
+```bash
+npm --prefix Client run preview
+```
+
+Build cục bộ không copy file sang API. Production build được thực hiện trong
+Dockerfile và artifact được Nginx phục vụ.
 
 ### Script
 
@@ -195,6 +216,30 @@ Sau khi build, chạy API và truy cập `https://localhost:7255`; ASP.NET Core 
 | `npm run build` | Kiểm tra TypeScript và build production |
 | `npm run preview` | Xem thử bản build |
 | `npm run lint` | Chạy Oxlint |
+
+Khi đứng ở repository root, thêm `npm --prefix Client`, ví dụ
+`npm --prefix Client run lint`.
+
+## Docker production và AWS EC2
+
+`Client/Dockerfile` thực hiện:
+
+1. Node 24 chạy `npm ci` từ lockfile.
+2. TypeScript và Vite build với `VITE_API_BASE_URL=/api`.
+3. Chỉ `dist` được copy sang image `nginx:1.28-alpine`.
+4. Ảnh sản phẩm seed từ API source được copy vào `/images` của Nginx.
+
+`Client/nginx.conf` chịu trách nhiệm:
+
+- fallback mọi route SPA về `index.html`;
+- cache `/assets` có hash trong một năm;
+- giới hạn request body ở `20m`;
+- proxy API, Hangfire và health check;
+- chuyển header Upgrade cho SignalR WebSocket.
+
+Trên AWS EC2, container frontend bind vào `127.0.0.1:8080`; Caddy trên host nhận
+HTTPS ở port 443 rồi proxy tới địa chỉ này. Xem [`../DEPLOYMENT.md`](../DEPLOYMENT.md)
+để biết toàn bộ luồng DNS, Elastic IP, Security Group và HTTPS.
 
 ## Lưu ý phát triển
 

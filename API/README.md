@@ -1,6 +1,10 @@
 # Restore API — Backend
 
-Backend của VMart là ASP.NET Core 10 Web API xây dựng theo **Clean Architecture** và **CQRS**. Hệ thống cung cấp nghiệp vụ thương mại điện tử, Identity/JWT, thanh toán SePay/VietQR, cache Redis, Hangfire, SignalR, Serilog/Elasticsearch và bản địa hóa Anh/Việt.
+Backend của VMart là ASP.NET Core 10 Web API xây dựng theo **Clean Architecture** và **CQRS**. Hệ thống cung cấp nghiệp vụ thương mại điện tử, Identity/JWT, thanh toán SePay/VietQR, cache Redis, Hangfire, SignalR, structured logging, truy vấn log Elasticsearch và bản địa hóa Anh/Việt.
+
+API không phục vụ React SPA. Khi phát triển, client chạy bằng Vite; khi deploy
+production, API chạy trong mạng Docker và chỉ nhận request do Nginx frontend
+proxy tới. Runbook AWS EC2 đầy đủ nằm tại [`../DEPLOYMENT.md`](../DEPLOYMENT.md).
 
 ## Kiến trúc
 
@@ -28,10 +32,10 @@ API/
 │   └── Resources/             # SharedResource.en/vi.resx
 └── RestoreAPI.Presentation/
     ├── Controllers/           # HTTP API
+    ├── Hangfire/              # Authorization filter cho dashboard
     ├── Middleware/            # Xử lý exception toàn cục
     ├── Program.cs             # Composition root và middleware pipeline
-    ├── appsettings*.json      # Cấu hình theo môi trường
-    └── wwwroot/               # React SPA sau khi build
+    └── wwwroot/images/        # Ảnh sản phẩm seed; Docker frontend copy khi build
 ```
 
 Quy tắc phụ thuộc:
@@ -54,7 +58,7 @@ Quy tắc phụ thuộc:
 | Thanh toán | SePay/VietQR và webhook API key |
 | Tác vụ nền | Hangfire 1.8, SQL Server storage |
 | File / email | Cloudinary, SMTP |
-| Log | Serilog, Elasticsearch 8, Kibana |
+| Log | Serilog console, dịch vụ truy vấn Elasticsearch 8, Kibana tùy chọn |
 | Realtime | SignalR `/hubs/products` |
 | Tài liệu API | Swagger / Swashbuckle |
 | Ngôn ngữ | `en`, `vi` qua resource và `Accept-Language` |
@@ -210,6 +214,9 @@ Lịch chạy sử dụng múi giờ Việt Nam theo implementation hiện tại
 | `GET /health/ready` | Các check sẵn sàng như database, job, payment và cache |
 
 Admin cũng có `GET /api/admin/health-checks` để frontend hiển thị báo cáo chi tiết.
+Elasticsearch tham gia `/health`, nhưng hiện không nằm trong predicate của
+`/health/ready`. SePay thuộc readiness; nếu chưa cấu hình thanh toán, endpoint
+ready có thể báo `Unhealthy` dù các chức năng không liên quan vẫn chạy.
 
 ## Xử lý lỗi
 
@@ -226,7 +233,7 @@ Các nhóm cấu hình chính trong `RestoreAPI.Presentation/appsettings*.json`:
 | Nhóm | Mục đích |
 |---|---|
 | `ConnectionStrings` | SQL Server, Redis và storage liên quan |
-| `cors` | Origin được phép gọi API |
+| `Cors` | Origin được phép gọi API |
 | `JWT` | Issuer, audience, signing key và thời hạn token |
 | `SepaySettings` | Tài khoản nhận, tiền tố mã, webhook key, QR base URL |
 | `CloudinarySettings` | Upload ảnh sản phẩm |
@@ -244,6 +251,11 @@ dotnet user-secrets set "JWT:Key" "<jwt-signing-key>"
 ```
 
 Trong biến môi trường, key lồng nhau dùng dấu `__`, ví dụ `SepaySettings__WebhookApiKey`.
+
+`appsettings*.json` đang được `.gitignore` loại khỏi source control. Mỗi môi
+trường phải cung cấp cấu hình qua file cục bộ, User Secrets hoặc biến môi trường.
+Production Compose truyền các cấu hình cần thiết bằng biến môi trường; không copy
+file chứa secret vào Docker image.
 
 ## Chạy backend
 
@@ -266,33 +278,52 @@ Compose hiện chạy Redis, Elasticsearch và Kibana; service SQL Server đang 
 ### Chạy API
 
 ```bash
-cd API/RestoreAPI.Presentation
-dotnet restore
-dotnet run --launch-profile https
+dotnet restore API/RestoreAPI.Presentation/RestoreAPI.csproj
+dotnet run --project API/RestoreAPI.Presentation/RestoreAPI.csproj --launch-profile https
 ```
 
-- HTTPS: `https://localhost:7255`.
-- HTTP: `http://localhost:5240`.
-- Swagger: `/swagger`.
-- Hangfire: `/hangfire`.
+- API: `http://localhost:7255` và `http://localhost:5240` theo launch profile hiện tại.
+- Swagger: `http://localhost:7255/swagger`.
+- Hangfire: `http://localhost:7255/hangfire`.
+- Health: `http://localhost:7255/health` và `/health/ready`.
 
-`DbInitializer` tự chạy migration và seed ba role `Admin`, `User`, `Vendor`, user mẫu cùng 76 sản phẩm nếu dữ liệu chưa có.
+Tên launch profile vẫn là `https`, nhưng `applicationUrl` hiện chỉ khai báo HTTP.
+`DbInitializer` tự chạy migration và seed ba role `Admin`, `User`, `Vendor`, user
+mẫu cùng 66 sản phẩm nếu dữ liệu chưa có.
 
 ### Migration EF Core
 
-Chạy từ thư mục `API`:
+Chạy từ thư mục gốc repository:
 
 ```bash
-dotnet ef migrations add <TenMigration> --project RestoreAPI.Infrastructure --startup-project RestoreAPI.Presentation
-dotnet ef database update --project RestoreAPI.Infrastructure --startup-project RestoreAPI.Presentation
+dotnet ef migrations add <TenMigration> \
+  --project API/RestoreAPI.Infrastructure \
+  --startup-project API/RestoreAPI.Presentation
+
+dotnet ef database update \
+  --project API/RestoreAPI.Infrastructure \
+  --startup-project API/RestoreAPI.Presentation
 ```
 
 ### Build
 
 ```bash
-cd API
-dotnet build Restore.slnx
+dotnet build API/Restore.slnx
 ```
+
+## Docker production và AWS EC2
+
+`API/Dockerfile` dùng multi-stage build: .NET SDK 10 restore/publish source rồi
+chỉ copy artifact sang ASP.NET Runtime 10. Container nghe port `8080`, không
+publish trực tiếp ra EC2 và chỉ được Nginx container gọi qua Docker network.
+
+Không chạy migration thủ công trong quy trình deploy thông thường vì API gọi
+`DbInitializer.InitializeAsync()` khi start. Với kiến trúc một API replica trên
+EC2, Compose chờ SQL Server, Redis và Elasticsearch healthy trước khi start API.
+Nếu scale nhiều replica, nên tách migration thành một release job duy nhất.
+
+Xem [`../DEPLOYMENT.md`](../DEPLOYMENT.md) để triển khai EC2, Security Group,
+Elastic IP, Caddy/HTTPS, `.env`, backup và rollback.
 
 ## Quan hệ project
 
