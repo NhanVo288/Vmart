@@ -467,6 +467,13 @@ cùng origin với frontend.
 docker compose -f docker-compose.prod.yml --profile observability up -d
 ```
 
+API production nhận `Elasticsearch__NodeUri=http://elasticsearch:9200` và
+`Elasticsearch__IndexPrefix=restore-logs` từ Compose. Serilog tự ghi index theo
+ngày với tên `restore-logs-yyyy.MM.dd`; API quản trị truy vấn
+`restore-logs-*`. Nếu đổi prefix, phải giữ cùng một giá trị cho cả quá trình ghi
+và truy vấn. Trong Kibana, tạo data view `restore-logs-*` và chọn
+`@timestamp` làm trường thời gian để xem log.
+
 Kibana bind vào `127.0.0.1:${KIBANA_PORT:-5601}`, do đó máy ngoài không truy cập
 trực tiếp được. Dùng SSH tunnel hoặc reverse proxy có xác thực nếu cần xem từ
 xa; không mở thẳng Kibana không bảo vệ ra Internet. Elasticsearch trong cấu hình

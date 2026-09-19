@@ -21,7 +21,7 @@ toàn bộ luồng và lý do của từng bước.
 - Upload ảnh lên Cloudinary; cache Redis có cơ chế quay về database khi Redis không khả dụng.
 - SignalR cập nhật sản phẩm và thông báo quản trị cho Admin/Vendor theo thời gian thực.
 - Hangfire chạy tác vụ dọn token đã thu hồi lúc 03:00 và giỏ hàng ẩn danh cũ lúc 04:00 theo múi giờ Việt Nam.
-- Serilog ghi structured log ra console; trang quản trị truy vấn log từ Elasticsearch và Kibana có thể được bật để quan sát dữ liệu index.
+- Serilog ghi structured log ra console và Elasticsearch theo index ngày; trang quản trị truy vấn cùng nhóm index và Kibana có thể được bật để quan sát dữ liệu.
 
 ## Kiến trúc tổng thể
 
@@ -226,7 +226,15 @@ Thiết lập các nhóm cấu hình trong `API/RestoreAPI.Presentation/appsetti
 - `ConnectionStrings:DefaultConnection`, `ConnectionStrings:Redis`.
 - `JWT`.
 - `SepaySettings`: ngân hàng, số tài khoản, chủ tài khoản, tiền tố mã thanh toán, QR base URL và webhook API key.
-- `CloudinarySettings`, `EmailSettings`, `Elasticsearch`, `Cleanup`, `Cors`.
+- `CloudinarySettings`, `EmailSettings`, `Cleanup`, `Cors`.
+- `Elasticsearch:NodeUri` và `Elasticsearch:IndexPrefix`; mặc định local là
+  `http://localhost:9200` và `restore-logs`.
+
+Khi `Elasticsearch:NodeUri` là URI tuyệt đối hợp lệ, API tự thêm Elasticsearch
+sink cho Serilog và ghi log vào index dạng
+`<index-prefix>-yyyy.MM.dd` (prefix được chuyển thành chữ thường). API quản trị
+`/api/admin/logs` và `/api/admin/logs/stats` truy vấn mẫu
+`<index-prefix>-*`, vì vậy cấu hình ghi và đọc log phải dùng cùng một prefix.
 
 `appsettings*.json` đang được Git bỏ qua vì có thể chứa secret. Máy phát triển
 phải tự cung cấp file cấu hình hoặc dùng User Secrets/biến môi trường. Với key

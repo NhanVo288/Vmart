@@ -58,7 +58,7 @@ Quy tắc phụ thuộc:
 | Thanh toán | SePay/VietQR và webhook API key |
 | Tác vụ nền | Hangfire 1.8, SQL Server storage |
 | File / email | Cloudinary, SMTP |
-| Log | Serilog console, dịch vụ truy vấn Elasticsearch 8, Kibana tùy chọn |
+| Log | Serilog console và Elasticsearch theo index ngày, dịch vụ truy vấn Elasticsearch 8, Kibana tùy chọn |
 | Realtime | SignalR `/hubs/products` |
 | Tài liệu API | Swagger / Swashbuckle |
 | Ngôn ngữ | `en`, `vi` qua resource và `Accept-Language` |
@@ -240,8 +240,27 @@ Các nhóm cấu hình chính trong `RestoreAPI.Presentation/appsettings*.json`:
 | `CloudinarySettings` | Upload ảnh sản phẩm |
 | `EmailSettings` | SMTP và địa chỉ gửi |
 | `Cleanup` | Thời gian giữ token/giỏ cũ |
-| `Elasticsearch` | Endpoint/index log |
+| `Elasticsearch` | `NodeUri` và `IndexPrefix` dùng chung để ghi/truy vấn log |
 | `Serilog` | Sink và mức log |
+
+API luôn đọc cấu hình Serilog thông thường. Nếu `Elasticsearch:NodeUri` là URI
+tuyệt đối hợp lệ, `Program.cs` tự đăng ký thêm Elasticsearch sink, tự tạo template
+ES 8 và ghi vào `<index-prefix>-yyyy.MM.dd`; prefix mặc định là `restore-logs` và
+được chuyển thành chữ thường. Dịch vụ log của Admin truy vấn
+`<index-prefix>-*`, hỗ trợ phân trang, lọc level không phân biệt hoa thường,
+khoảng ngày và tìm kiếm nội dung. Hai endpoint log chỉ dành cho role `Admin`.
+
+Ví dụ cấu hình local:
+
+```json
+"Elasticsearch": {
+  "NodeUri": "http://localhost:9200",
+  "IndexPrefix": "restore-logs"
+}
+```
+
+Khi dùng biến môi trường, đặt tương ứng
+`Elasticsearch__NodeUri` và `Elasticsearch__IndexPrefix`.
 
 Không đưa connection string, JWT key, mật khẩu SMTP, Cloudinary secret hoặc SePay webhook key thật vào source control. Dùng Secret Manager khi phát triển:
 
