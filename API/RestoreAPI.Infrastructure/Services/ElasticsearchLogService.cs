@@ -33,13 +33,17 @@ namespace RestoreAPI.Infrastructure.Services
                 var mustClauses = new List<string>();
 
                 if (!string.IsNullOrEmpty(level))
-                    mustClauses.Add("{\"term\":{\"level\":\"" + level.ToLower() + "\"}}");
+                    mustClauses.Add("{\"term\":{\"level\":{\"value\":\"" + level.ToLowerInvariant() + "\",\"case_insensitive\":true}}}");
 
                 if (from.HasValue || to.HasValue)
                 {
-                    var gte = from.HasValue ? from.Value.ToString("O") : "";
-                    var lte = to.HasValue ? to.Value.AddDays(1).AddTicks(-1).ToString("O") : "";
-                    mustClauses.Add("{\"range\":{\"@timestamp\":{\"gte\":\"" + gte + "\",\"lte\":\"" + lte + "\"}}}");
+                    var bounds = new List<string>();
+                    if (from.HasValue)
+                        bounds.Add("\"gte\":\"" + from.Value.ToString("O") + "\"");
+                    if (to.HasValue)
+                        bounds.Add("\"lte\":\"" + to.Value.AddDays(1).AddTicks(-1).ToString("O") + "\"");
+
+                    mustClauses.Add("{\"range\":{\"@timestamp\":{" + string.Join(",", bounds) + "}}}");
                 }
 
                 if (!string.IsNullOrEmpty(search))
@@ -111,9 +115,9 @@ namespace RestoreAPI.Infrastructure.Services
                 var today = DateTime.UtcNow.Date.ToString("yyyy-MM-dd");
 
                 var totalTask = CountAsync("{\"query\":{\"match_all\":{}}}");
-                var errorsTask = CountAsync("{\"query\":{\"bool\":{\"must\":[{\"term\":{\"level\":\"error\"}},{\"range\":{\"@timestamp\":{\"gte\":\"" + today + "\"}}}]}}}");
-                var warningsTask = CountAsync("{\"query\":{\"bool\":{\"must\":[{\"term\":{\"level\":\"warning\"}},{\"range\":{\"@timestamp\":{\"gte\":\"" + today + "\"}}}]}}}");
-                var infoTask = CountAsync("{\"query\":{\"bool\":{\"must\":[{\"term\":{\"level\":\"information\"}},{\"range\":{\"@timestamp\":{\"gte\":\"" + today + "\"}}}]}}}");
+                var errorsTask = CountTodayByLevelAsync("error", today);
+                var warningsTask = CountTodayByLevelAsync("warning", today);
+                var infoTask = CountTodayByLevelAsync("information", today);
 
                 await Task.WhenAll(totalTask, errorsTask, warningsTask, infoTask);
 
@@ -158,6 +162,16 @@ namespace RestoreAPI.Infrastructure.Services
             {
                 return 0;
             }
+        }
+
+        private Task<long> CountTodayByLevelAsync(string level, string today)
+        {
+            var query = "{\"query\":{\"bool\":{\"must\":[" +
+                "{\"term\":{\"level\":{\"value\":\"" + level + "\",\"case_insensitive\":true}}}," +
+                "{\"range\":{\"@timestamp\":{\"gte\":\"" + today + "\"}}}" +
+                "]}}}";
+
+            return CountAsync(query);
         }
     }
 }

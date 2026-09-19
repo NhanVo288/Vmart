@@ -16,12 +16,30 @@ using RestoreAPI.Infrastructure.Jobs;
 using RestoreAPI.Presentation.Hangfire;
 using RestoreAPI.Infrastructure.Hubs;
 using RestoreAPI.Middleware;
+using Serilog.Sinks.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
+var loggerConfiguration = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration);
+
+var elasticsearchNodeUri = builder.Configuration["Elasticsearch:NodeUri"];
+var elasticsearchIndexPrefix = builder.Configuration["Elasticsearch:IndexPrefix"] ?? "restore-logs";
+
+if (Uri.TryCreate(elasticsearchNodeUri, UriKind.Absolute, out var elasticsearchUri))
+{
+    loggerConfiguration.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(elasticsearchUri)
+    {
+        AutoRegisterTemplate = true,
+        AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv8,
+        IndexFormat = $"{elasticsearchIndexPrefix.ToLowerInvariant()}-{{0:yyyy.MM.dd}}",
+        InlineFields = true,
+        NumberOfReplicas = 0,
+        EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog
+    });
+}
+
+Log.Logger = loggerConfiguration.CreateLogger();
 
 builder.Host.UseSerilog();
 
