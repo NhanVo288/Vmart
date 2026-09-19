@@ -10,14 +10,12 @@ export interface RegisterRequest {
 
 export interface LoginResponse {
   isSuccess: boolean;
-  token?: string;
   email?: string;
   errors?: string[];
 }
 
 export interface AuthenticationResult {
   isSuccess: boolean;
-  token?: string;
   email?: string;
   errors?: string[];
 }

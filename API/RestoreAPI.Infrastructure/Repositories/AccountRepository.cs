@@ -63,7 +63,7 @@ namespace RestoreAPI.Infrastructure.Repositories
             }
             await _userManager.AddToRoleAsync(user, "User");
 
-            var token = await _tokenService.CreateTokenAsync(user);
+            var tokens = await _tokenService.CreateTokenPairAsync(user);
 
             _logger.LogInformation("User registered: {UserId}", user.Id);
 
@@ -76,7 +76,8 @@ namespace RestoreAPI.Infrastructure.Repositories
                 IsSuccess = true,
                 Email = user.Email,
                 UserId = user.Id,
-                Token = token
+                AccessToken = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
             };
         }
 
@@ -173,21 +174,25 @@ namespace RestoreAPI.Infrastructure.Repositories
                 };
             }
 
-            var token = await _tokenService.CreateTokenAsync(user);
+            var tokens = await _tokenService.CreateTokenPairAsync(user);
 
             return new AuthenticationDto
             {
                 IsSuccess = true,
                 Email = user.Email,
                 UserId = user.Id,
-                Token = token
+                AccessToken = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
             };
         }
 
-        public async Task LogoutAsync(string token)
+        public async Task LogoutAsync(string accessToken, string refreshToken)
         {
-            if (!string.IsNullOrEmpty(token))
-                await _tokenService.RevokeAsync(token);
+            if (!string.IsNullOrEmpty(accessToken))
+                await _tokenService.RevokeAsync(accessToken);
+
+            if (!string.IsNullOrEmpty(refreshToken))
+                await _tokenService.RevokeRefreshTokenAsync(refreshToken);
         }
 
         public async Task<Result<AddressDto>> CreateOrUpdateAddressAsync(ClaimsPrincipal principal, AddressDto addressDto)

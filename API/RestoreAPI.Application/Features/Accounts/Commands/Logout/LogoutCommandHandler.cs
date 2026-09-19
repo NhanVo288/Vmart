@@ -19,7 +19,7 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
     public async Task<Result> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("User logged out");
-        await _accountRepository.LogoutAsync(request.BearerToken);
+        await _accountRepository.LogoutAsync(request.AccessToken, request.RefreshToken);
         return Result.Success();
     }
 }

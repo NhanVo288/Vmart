@@ -15,6 +15,7 @@ using RestoreAPI.Infrastructure.Extention;
 using RestoreAPI.Infrastructure.Jobs;
 using RestoreAPI.Presentation.Hangfire;
 using RestoreAPI.Infrastructure.Hubs;
+using RestoreAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -121,6 +122,7 @@ using (var scope = app.Services.CreateScope())
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 
+app.UseMiddleware<HangfireTokenRefreshMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

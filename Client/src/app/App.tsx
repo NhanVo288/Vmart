@@ -17,30 +17,8 @@ function NavigateSetter() {
 function AuthInitializer() {
   const dispatch = useAppDispatch();
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      dispatch(initialized());
-      return;
-    }
-
-    if (token.includes('.')) {
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload.exp && payload.exp * 1000 < Date.now()) {
-            dispatch(logout());
-            dispatch(initialized());
-            return;
-          }
-        }
-      } catch {
-        dispatch(logout());
-        dispatch(initialized());
-        return;
-      }
-    }
+    // Remove tokens left by versions that used browser storage.
+    localStorage.removeItem('token');
 
     dispatch(authApi.endpoints.getUserInfo.initiate(undefined, { forceRefetch: true }))
       .unwrap()

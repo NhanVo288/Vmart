@@ -67,6 +67,8 @@ services:
       JWT__Key: ${JWT_KEY:?Set JWT_KEY in .env}
       JWT__Issuer: ${JWT_ISSUER:-RestoreAPI}
       JWT__Audience: ${JWT_AUDIENCE:-RestoreClient}
+      JWT__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-15}
+      JWT__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS:-30}
       SepaySettings__BankAccountNumber: ${SEPAY_BANK_ACCOUNT_NUMBER:-}
       SepaySettings__BankName: ${SEPAY_BANK_NAME:-}
       SepaySettings__AccountHolder: ${SEPAY_ACCOUNT_HOLDER:-}

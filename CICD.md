@@ -1,11 +1,57 @@
 # CI/CD lên EC2
 
-Pipeline: GitHub Actions → GHCR → SSH → Docker Compose trên EC2 Ubuntu x86_64.
-Pull request vào `main` chạy lint và build cả hai Docker image (bao gồm compile
-.NET và TypeScript). Push vào `main` hoặc Run workflow trên `main` sẽ build,
-publish image theo commit SHA rồi deploy. Pipeline chưa có bộ unit/integration test.
+Pipeline triển khai Restore System theo luồng GitHub Actions → GHCR → SSH → Docker
+Compose trên EC2 Ubuntu x86_64. File workflow chính là `.github/workflows/ec2.yml`.
 
-## 1. Chuẩn bị EC2 một lần
+## 1. CI/CD hiện tại làm được gì?
+
+### 1.1. Hành vi theo trigger
+
+| Trigger | Validate | Build image | Push GHCR | Deploy EC2 |
+|---|---:|---:|---:|---:|
+| Pull request vào `main` | Có | Có | Không | Không |
+| Push vào `main` | Có | Có | Có | Có |
+| Run workflow trên `main` | Có | Có | Có | Có |
+| Push vào branch khác | Không chạy | Không chạy | Không | Không |
+| Run workflow trên branch khác | Có | Có | Không | Không |
+
+`validate` phải thành công trước khi hai Docker image được build song song. `deploy` chỉ
+chạy sau khi cả hai image build thành công và chỉ khi ref là `main`.
+
+### 1.2. Luồng thực thi
+
+```text
+Validate
+  ├─ npm ci + lint frontend
+  ├─ kiểm tra Bash/ShellCheck cho deploy script
+  └─ kiểm tra Docker Compose
+       ↓
+Build API + Frontend
+  ├─ compile .NET trong Docker build
+  ├─ compile TypeScript/Vite trong Docker build
+  └─ push image gắn commit SHA lên GHCR (chỉ main)
+       ↓
+Deploy production
+  ├─ nhận AWS credential ngắn hạn qua OIDC
+  ├─ mở tạm SSH cho IP /32 của runner
+  ├─ xác minh host key, upload release và chạy deploy script
+  ├─ pull image, khởi động dependency, recreate API/frontend
+  ├─ chờ `/` và `/health/ready` thành công
+  └─ thu hồi rule SSH tạm
+```
+
+Mỗi release dùng image gắn đúng commit SHA và được lưu tại
+`~/Vmart/releases/<sha>-<run-id>-<attempt>`. `flock` trên EC2 và GitHub concurrency ngăn
+hai lần deploy cùng ref chạy chồng lên nhau.
+
+### 1.3. Các giới hạn hiện tại
+
+- Không tự tạo/cập nhật file `~/Vmart/.env`.
+- Không tự backup hay rollback database; API tự chạy EF migration khi khởi động.
+- Không tự rollback image khi deploy lỗi; rollback hiện là thao tác thủ công.
+- Recreate API/frontend có thể gây gián đoạn ngắn, không phải zero-downtime deployment.
+
+## 2. Chuẩn bị EC2 một lần
 
 Làm theo [DEPLOYMENT.md](DEPLOYMENT.md) để cài Docker Engine, Compose plugin,
 cấu hình `vm.max_map_count`, domain và HTTPS bằng Caddy. User SSH cần chạy được
@@ -19,7 +65,7 @@ nano ~/Vmart/.env
 chmod 600 ~/Vmart/.env
 ```
 
-### 1.1. Lấy các biến cho `.env` production
+### 2.1. Lấy các biến cho `.env` production
 
 File này là cấu hình **runtime của ứng dụng**, chỉ lưu tại `~/Vmart/.env` trên EC2;
 không thêm các giá trị này vào GitHub Secrets và không commit vào repository.
@@ -95,7 +141,7 @@ Nếu giá trị có `#`, khoảng trắng hoặc `$`, đặt toàn bộ giá tr
 ví dụ trên để Compose không cắt comment hoặc nội suy biến. Không thêm khoảng trắng quanh
 dấu `=`.
 
-### 1.2. Cấu hình webhook SePay
+### 2.2. Cấu hình webhook SePay
 
 Trong SePay, vào **Tích hợp → Webhooks → Thêm webhook** và cấu hình:
 
@@ -119,7 +165,7 @@ unset GHCR_TOKEN
 GitHub Actions dùng `GITHUB_TOKEN` để publish; không cần PAT ghi package.
 EC2 cần outbound HTTPS để pull GHCR và các image hạ tầng.
 
-## 2. Cấu hình GitHub Environment
+## 3. Cấu hình GitHub Environment
 
 Các biến phần này chỉ giúp GitHub Actions kết nối SSH tới EC2; chúng khác với file
 `~/Vmart/.env` ở trên. Trong repository, vào **Settings → Environments → New
@@ -146,7 +192,7 @@ Role ARN, Region và Security Group ID không phải secret; workflow đọc ch�
 `vars`. Không tạo `AWS_ACCESS_KEY_ID` hoặc `AWS_SECRET_ACCESS_KEY` vì workflow dùng OIDC
 để nhận AWS credential ngắn hạn.
 
-### 2.1. `EC2_HOST`
+### 3.1. `EC2_HOST`
 
 Vào AWS Console → **EC2 → Instances**, chọn instance production rồi lấy **Elastic IP
 address** hoặc **Public IPv4 DNS**. Nếu DNS của ứng dụng đã trỏ ổn định tới đúng EC2 thì
@@ -156,13 +202,13 @@ cũng có thể dùng hostname đó. Chỉ lưu hostname/IP, ví dụ `203.0.113
 Ưu tiên Elastic IP hoặc domain ổn định vì public IPv4 tự cấp có thể đổi sau stop/start.
 Giá trị dùng ở đây phải trùng với host dùng để tạo `EC2_KNOWN_HOSTS`.
 
-### 2.2. `EC2_USER`
+### 3.2. `EC2_USER`
 
 Với Ubuntu 24.04 AMI trong tài liệu này, đặt `ubuntu`. Có thể xác nhận trong AWS Console:
 chọn instance → **Connect → SSH client** và xem username trong lệnh SSH mẫu. Không đặt
 `root` và không thêm phần `@host`.
 
-### 2.3. `EC2_SSH_KEY`
+### 3.3. `EC2_SSH_KEY`
 
 Nên tạo một key deploy riêng thay vì tái sử dụng key quản trị. Trên máy quản trị chạy:
 
@@ -183,7 +229,7 @@ Giá trị secret `EC2_SSH_KEY` là **toàn bộ nội dung file private**
 KEY`; giữ nguyên các dòng xuống hàng. Không dùng file `.pub`. Nếu dùng key pair `.pem`
 đã chọn lúc tạo EC2 thì dán toàn bộ file `.pem`; AWS không cho tải lại private key đã mất.
 
-### 2.4. `EC2_KNOWN_HOSTS`
+### 3.4. `EC2_KNOWN_HOSTS`
 
 Không lấy host key chỉ bằng `ssh-keyscan` rồi tin ngay. Trước tiên lấy fingerprint trực
 tiếp qua EC2 console/SSM hoặc một phiên SSH đã được xác minh:
@@ -208,9 +254,9 @@ nên thay EC2/host key hoặc đổi `EC2_HOST` thì phải tạo lại secret n
 Các biến `API_IMAGE`, `FRONTEND_IMAGE`, `REPOSITORY` và commit SHA cũng do workflow/script
 tự sinh, không cần khai báo thủ công.
 
-### 2.5. Cho GitHub Actions quyền cập nhật Security Group bằng OIDC
+## 4. AWS OIDC và SSH tạm thời
 
-#### Vì sao dùng luồng này?
+### 4.1. Vì sao dùng luồng này?
 
 EC2 hiện chỉ cho phép SSH từ IP quản trị cố định `/32`, trong khi mỗi job
 `ubuntu-latest` có thể chạy từ một IP public khác. Vì vậy mở SSH cho IP máy cá nhân vẫn
@@ -243,12 +289,7 @@ minh danh tính client, còn `EC2_KNOWN_HOSTS` bảo đảm runner đang kết n
 Ba lớp này giải quyết ba việc độc lập: mở đường mạng tạm thời, xác thực client và xác
 thực server.
 
-Runner `ubuntu-latest` có IP thay đổi. Workflow lấy public IPv4 của runner, dùng AWS OIDC
-thêm tạm rule SSH `<runner-ip>/32`, deploy, rồi xóa chính rule đó trong bước
-`if: always()`. Không mở port 22 cho `0.0.0.0/0` và không cần allowlist toàn bộ dải IP
-của GitHub. Rule `27.78.72.30/32` dành cho máy quản trị có thể giữ nguyên.
-
-#### Bước 1: lấy thông tin AWS
+### 4.2. Lấy thông tin AWS
 
 - Account ID: AWS Console → menu tài khoản góc phải → **Account ID**.
 - Region: xem Region đang chọn khi mở EC2, ví dụ Singapore là `ap-southeast-1`.
@@ -256,7 +297,7 @@ của GitHub. Rule `27.78.72.30/32` dành cho máy quản trị có thể giữ 
   Security Group và sao chép **Security group ID** dạng `sg-...`. Các giá trị
   `sgr-08...`, `sgr-0b...`, `sgr-04...` là ID từng rule và không dùng ở đây.
 
-#### Bước 2: tạo GitHub OIDC provider một lần
+### 4.3. Tạo GitHub OIDC provider một lần
 
 Trong AWS Console vào **IAM → Identity providers → Add provider**:
 
@@ -266,7 +307,7 @@ Trong AWS Console vào **IAM → Identity providers → Add provider**:
 
 Nếu provider này đã tồn tại trong cùng AWS account thì dùng lại, không tạo trùng.
 
-#### Bước 3: tạo permission policy giới hạn đúng Security Group
+### 4.4. Tạo permission policy giới hạn đúng Security Group
 
 IAM → **Policies → Create policy → JSON**, thay ba placeholder rồi tạo policy tên
 `VmartGitHubDeploySecurityGroup`:
@@ -291,12 +332,12 @@ Ví dụ phần `Resource`:
 `arn:aws:ec2:ap-southeast-1:123456789012:security-group/sg-0123456789abcdef0`.
 Policy không cho workflow sửa instance hoặc Security Group khác.
 
-#### Bước 4: tạo role chỉ tin repository và Environment production
+### 4.5. Tạo role chỉ tin repository và Environment production
 
 IAM → **Roles → Create role → Web identity**, chọn provider
 `token.actions.githubusercontent.com`, audience `sts.amazonaws.com`, gắn policy vừa tạo
 và đặt tên role `VmartGitHubDeploy`. Sau khi tạo, mở **Trust relationships → Edit trust
-policy** và dùng policy sau khi thay `<AWS_ACCOUNT_ID>`:
+policy** và dùng policy sau khi thay các placeholder:
 
 ```json
 {
@@ -305,7 +346,7 @@ policy** và dùng policy sau khi thay `<AWS_ACCOUNT_ID>`:
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::175880708106:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -320,32 +361,39 @@ policy** và dùng policy sau khi thay `<AWS_ACCOUNT_ID>`:
 }
 ```
 
-Điều kiện `sub` phân biệt chữ hoa/thường và chỉ cho job dùng GitHub Environment
-`production` của repository này assume role. Vì `sub` dạng environment không chứa tên
-branch, điều kiện `ref` giới hạn thêm chính xác `refs/heads/main` và đáp ứng kiểm tra bảo
-mật của AWS IAM. Sao chép **ARN** của role vào GitHub Environment variable
-`AWS_ROLE_ARN`; thêm Region và Security Group ID đã lấy vào hai variable còn lại.
+Workflow in các giá trị cần thiết ở bước **Show GitHub OIDC identity**, kể cả khi bước
+assume role sau đó thất bại:
 
-Repository tạo sau ngày 15/07/2026, đã bật immutable OIDC subject hoặc được rename/transfer
-sau ngày đó dùng `sub` có thêm numeric ID. Kiểm tra ID bằng GitHub CLI đã đăng nhập:
+```text
+owner_id=<OWNER_ID>
+repository_id=<REPO_ID>
+ref=refs/heads/main
+```
+
+Cũng có thể lấy hai ID bằng GitHub CLI đã đăng nhập:
 
 ```bash
 gh api repos/NhanVo288/Vmart --jq '{owner_id: .owner.id, repo_id: .id}'
 ```
 
-Nếu repository thuộc trường hợp này, thay riêng giá trị `sub` bằng định dạng sau, sử dụng
-đúng hai ID vừa lấy; không dùng wildcard cho ID:
+Repository tạo sau ngày 15/07/2026, đã bật immutable OIDC subject hoặc được rename/transfer
+sau ngày đó phải dùng `sub` có numeric ID như mẫu policy phía trên. Không dùng wildcard
+cho ID. Repository cũ chưa bật định dạng immutable dùng giá trị sau:
 
 ```text
-repo:NhanVo288@<OWNER_ID>/Vmart@<REPO_ID>:environment:production
+repo:NhanVo288/Vmart:environment:production
 ```
+
+Điều kiện `sub` chỉ cho repository và Environment `production` assume role. Vì `sub` dạng
+environment không chứa branch, điều kiện `ref` giới hạn thêm `refs/heads/main`. Sao chép
+ARN của role vào `AWS_ROLE_ARN`; thêm Region và Security Group ID vào hai variable còn lại.
 
 Trong GitHub Environment `production`, đặt **Deployment branches and tags** thành
 **Selected branches and tags**, chỉ thêm branch `main`. Nên bật **Required reviewers**
 và **Prevent self-review** nếu gói GitHub đang dùng hỗ trợ, vì mọi job được phép dùng
 Environment này sẽ có cùng OIDC `sub`.
 
-#### Bước 5: giữ rule SSH tĩnh ở phạm vi hẹp
+### 4.6. Giữ rule SSH tĩnh ở phạm vi hẹp
 
 Security Group không cần rule SSH cho GitHub tồn tại thường trực. Chỉ giữ rule
 `22/TCP` từ IP quản trị, ví dụ `27.78.72.30/32`. Khi deploy, rule tạm có Description dạng
@@ -357,9 +405,8 @@ Actions rồi xóa rule cũ. Workflow mặc định dùng SSH port 22.
 
 Bật Actions và quyền publish packages theo chính sách repository/organization.
 Nếu package đã tồn tại, cấp Actions access của repository cho cả hai package.
-Có thể cấu hình required reviewers cho Environment production nếu cần duyệt deploy.
 
-## 3. Chạy và kiểm tra
+## 5. Chạy, kiểm tra và xử lý lỗi
 
 Push các file cấu hình này lên `main`, xem Actions → **CI/CD EC2**.
 Hai image là `ghcr.io/<owner>/<repo>-api:<sha>` và
@@ -382,7 +429,18 @@ DNS, Caddy và đường mạng công khai. Nếu deploy thất bại, workflow 
 `current` vẫn trỏ tới bản thành công trước nhưng container có thể đã được thay.
 Xem `docker ps` và `docker logs <container>` trên EC2 để chẩn đoán.
 
-## 4. Quay lại bản trước
+### 5.1. Lỗi thường gặp
+
+| Lỗi | Nguyên nhân thường gặp | Cách xử lý |
+|---|---|---|
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy không khớp `sub`, `ref`, audience hoặc đang sửa nhầm role | Đối chiếu `owner_id`, `repository_id`, `ref` trong bước **Show GitHub OIDC identity** và kiểm tra `AWS_ROLE_ARN` |
+| `EC2_SECURITY_GROUP_ID` không hợp lệ | Dùng rule ID `sgr-...` thay vì Security Group ID | Dùng ID dạng `sg-...` trong Environment variable và IAM policy ARN |
+| `ssh: connect ... port 22: Connection timed out` | Rule `/32` chưa được tạo, sai `EC2_HOST`, sai Security Group hoặc instance không public | Kiểm tra bước **Allow this runner to use SSH**, Elastic IP/Public DNS, route và Security Group gắn với instance |
+| `Host key verification failed` | `EC2_KNOWN_HOSTS` không khớp chính xác `EC2_HOST` hoặc EC2 đã đổi host key | Xác minh lại fingerprint rồi cập nhật secret |
+| `Permission denied (publickey)` | Sai `EC2_USER`, private key hoặc public key chưa có trong `authorized_keys` | Kiểm tra bằng cùng key từ máy quản trị |
+| `/health/ready` thất bại | Dependency chưa healthy hoặc thiếu cấu hình SePay/runtime | Xem `docker compose ps`, log API và kiểm tra `~/Vmart/.env` |
+
+## 6. Quay lại bản trước
 
 API tự chạy EF migration khi khởi động. Backup database trước thay đổi schema;
 chỉ quay lại image nếu schema hiện tại tương thích với phiên bản cũ. Pipeline
@@ -406,12 +464,14 @@ ln -sfn "$PWD" "$HOME/Vmart/current"
 Không chạy rollback đồng thời với pipeline. Giữ image SHA cần rollback trong
 GHCR; không xóa volume (`down -v`). Release thất bại chưa có `images.env`.
 
-Tham khảo: [GitHub Environments và environment secrets](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments),
-[GitHub OIDC với AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws),
-[GitHub publish Docker images](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images),
-[GHCR authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry),
-[AWS EC2 key pairs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html),
-[Cloudinary credentials](https://cloudinary.com/documentation/developer_onboarding_faq_find_credentials),
-[Google App passwords](https://support.google.com/accounts/answer/185833),
-[SePay tạo và xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/tao-webhook),
-[Compose up và --wait](https://docs.docker.com/reference/cli/docker/compose/up/).
+## 7. Tài liệu tham khảo
+
+- [GitHub Environments và environment secrets](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
+- [GitHub OIDC với AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
+- [GitHub publish Docker images](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
+- [GHCR authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+- [AWS EC2 key pairs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
+- [Cloudinary credentials](https://cloudinary.com/documentation/developer_onboarding_faq_find_credentials)
+- [Google App passwords](https://support.google.com/accounts/answer/185833)
+- [SePay tạo và xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/tao-webhook)
+- [Compose up và `--wait`](https://docs.docker.com/reference/cli/docker/compose/up/)

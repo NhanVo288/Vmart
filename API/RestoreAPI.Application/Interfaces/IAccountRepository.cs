@@ -12,7 +12,7 @@ namespace RestoreAPI.Application.Interfaces
         Task<List<UserListItemDto>> GetAllUsersAsync();
         Task<UserListItemDto?> GetUserByIdAsync(string id);
         Task<bool> UpdateUserRolesAsync(string id, List<string> roles);
-        Task LogoutAsync(string token);
+        Task LogoutAsync(string accessToken, string refreshToken);
         Task<Result<AddressDto>> CreateOrUpdateAddressAsync(ClaimsPrincipal principal, AddressDto addressDto);
         Task<AddressDto?> GetSavedAddressAsync(ClaimsPrincipal principal);
         Task ForgotPasswordAsync(string email);

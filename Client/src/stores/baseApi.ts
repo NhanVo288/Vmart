@@ -9,22 +9,48 @@ const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   credentials: 'include',
   prepareHeaders: (headers) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
     const language = localStorage.getItem('language') || 'en';
     headers.set('Accept-Language', language);
     return headers;
   },
 });
 
+let refreshRequest: Promise<boolean> | null = null;
+
 const baseQueryWithErrorHandling: BaseQueryFn<
   FetchArgs | string,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  const result = await rawBaseQuery(args, api, extraOptions);
+  let result = await rawBaseQuery(args, api, extraOptions);
+
+  const requestUrl = typeof args === 'string' ? args : args.url;
+  const isAuthenticationRequest = [
+    '/account/login',
+    '/account/register',
+    '/account/refresh',
+  ].some((path) => requestUrl.endsWith(path));
+
+  if (result.error?.status === 401 && !isAuthenticationRequest) {
+    if (!refreshRequest) {
+      refreshRequest = (async () => {
+        const refreshResult = await rawBaseQuery(
+          { url: '/account/refresh', method: 'POST' },
+          api,
+          extraOptions,
+        );
+        return !refreshResult.error;
+      })().finally(() => {
+        refreshRequest = null;
+      });
+    }
+
+    if (await refreshRequest) {
+      result = await rawBaseQuery(args, api, extraOptions);
+    } else {
+      api.dispatch({ type: 'auth/logout' });
+    }
+  }
 
   if (result.error) {
     const originalStatus = result.error.status === 'PARSING_ERROR' && result.error.originalStatus

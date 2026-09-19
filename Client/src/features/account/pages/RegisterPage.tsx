@@ -12,7 +12,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useRegisterMutation, authApi } from '../../../stores/authApi';
-import { setCredentials, setUser } from '../../../stores/authSlice';
+import { setUser } from '../../../stores/authSlice';
 import { useAppDispatch } from '../../../stores/hooks';
 import { baseApi } from '../../../stores/baseApi';
 import { AuthLayout } from '../../../components/ui/AuthLayout';
@@ -55,20 +55,12 @@ export function RegisterPage() {
     setError('');
     try {
       const result = await registerApi({ email: data.email, password: data.password }).unwrap();
-      if (result.isSuccess && result.token) {
-        dispatch(
-          setCredentials({
-            token: result.token,
-            user: { email: result.email ?? data.email, userName: result.email ?? data.email, roles: [] },
-          })
-        );
-        try {
-          const userInfo = await dispatch(
-            authApi.endpoints.getUserInfo.initiate(undefined, { forceRefetch: true })
-          ).unwrap();
-          dispatch(setUser(userInfo));
-          dispatch(baseApi.util.invalidateTags(['Basket', 'Favorite']));
-        } catch { /* best-effort */ }
+      if (result.isSuccess) {
+        const userInfo = await dispatch(
+          authApi.endpoints.getUserInfo.initiate(undefined, { forceRefetch: true })
+        ).unwrap();
+        dispatch(setUser(userInfo));
+        dispatch(baseApi.util.invalidateTags(['Basket', 'Favorite']));
         navigate('/');
       } else if (result.errors?.length) {
         setError(result.errors.join('. '));

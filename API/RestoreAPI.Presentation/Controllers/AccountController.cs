@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using RestoreAPI.Application.Common;
 using RestoreAPI.Application.DTOs;
 using RestoreAPI.Application.Features.Accounts.Commands.CreateOrUpdateAddress;
 using RestoreAPI.Application.Features.Accounts.Commands.ForgotPassword;
@@ -12,6 +13,8 @@ using RestoreAPI.Application.Features.Accounts.Commands.Register;
 using RestoreAPI.Application.Features.Accounts.Commands.ResetPassword;
 using RestoreAPI.Application.Features.Accounts.Queries.GetSavedAddress;
 using RestoreAPI.Application.Features.Accounts.Queries.GetUserInfo;
+using RestoreAPI.Application.Interfaces;
+using RestoreAPI.Application.Settings;
 using RestoreAPI.Presentation.Common;
 
 namespace RestoreAPI.Controllers
@@ -22,11 +25,19 @@ namespace RestoreAPI.Controllers
     {
         private readonly IMediator _mediator;
         private readonly ILogger<AccountController> _logger;
+        private readonly ITokenService _tokenService;
+        private readonly JwtSettings _jwtSettings;
 
-        public AccountController(IMediator mediator, ILogger<AccountController> logger)
+        public AccountController(
+            IMediator mediator,
+            ILogger<AccountController> logger,
+            ITokenService tokenService,
+            JwtSettings jwtSettings)
         {
             _mediator = mediator;
             _logger = logger;
+            _tokenService = tokenService;
+            _jwtSettings = jwtSettings;
         }
 
         [HttpPost("register")]
@@ -48,9 +59,12 @@ namespace RestoreAPI.Controllers
                 await TransferAnonymousBuyerAsync(result.Value.UserId, _mediator);
             }
 
+            SetAuthenticationCookies(result.Value);
+
             return CreatedAtAction(nameof(GetUserInfo), result.Value);
         }
 
+        [Authorize]
         [HttpGet("user-info")]
         public async Task<ActionResult> GetUserInfo()
         {
@@ -83,24 +97,130 @@ namespace RestoreAPI.Controllers
                 Email = loginDto.Email,
                 Password = loginDto.Password
             });
-            return result.ToActionResult(this);
+
+            if (result.IsFailure)
+                return result.ToActionResult(this);
+
+            SetAuthenticationCookies(result.Value);
+
+            return Ok(result.Value);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public async Task<ActionResult> Refresh()
+        {
+            if (!Request.Cookies.TryGetValue(
+                    AuthenticationConstants.RefreshTokenCookieName,
+                    out var refreshToken))
+            {
+                return Unauthorized();
+            }
+
+            var tokens = await _tokenService.RotateRefreshTokenAsync(refreshToken);
+            if (tokens is null)
+            {
+                return Unauthorized();
+            }
+
+            SetAuthenticationCookies(tokens.AccessToken, tokens.RefreshToken);
+            return NoContent();
         }
 
         [Authorize]
         [HttpPost("logout")]
         public async Task<ActionResult> Logout()
         {
-            var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-            await _mediator.Send(new LogoutCommand { BearerToken = token });
+            var accessToken = Request.Cookies[AuthenticationConstants.AccessTokenCookieName]
+                ?? Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var refreshToken = Request.Cookies[AuthenticationConstants.RefreshTokenCookieName]
+                ?? string.Empty;
+
+            await _mediator.Send(new LogoutCommand
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            });
 
             foreach (var cookie in Request.Cookies.Keys)
             {
                 Response.Cookies.Delete(cookie);
             }
 
+            DeleteAuthenticationCookies();
+
             _logger.LogInformation("User logged out");
             return NoContent();
         }
+
+        private void SetAuthenticationCookies(AuthenticationDto authentication)
+        {
+            if (string.IsNullOrWhiteSpace(authentication.AccessToken) ||
+                string.IsNullOrWhiteSpace(authentication.RefreshToken))
+            {
+                throw new InvalidOperationException("Authentication tokens were not created.");
+            }
+
+            SetAuthenticationCookies(authentication.AccessToken, authentication.RefreshToken);
+        }
+
+        private void SetAuthenticationCookies(string accessToken, string refreshToken)
+        {
+            Response.Cookies.Append(
+                AuthenticationConstants.AccessTokenCookieName,
+                accessToken,
+                BuildAccessTokenCookieOptions());
+            Response.Cookies.Append(
+                AuthenticationConstants.RefreshTokenCookieName,
+                refreshToken,
+                BuildRefreshTokenCookieOptions());
+
+            Response.Cookies.Delete(
+                AuthenticationConstants.LegacyHangfireCookieName,
+                BuildLegacyHangfireCookieOptions());
+        }
+
+        private void DeleteAuthenticationCookies()
+        {
+            Response.Cookies.Delete(
+                AuthenticationConstants.AccessTokenCookieName,
+                BuildAccessTokenCookieOptions());
+            Response.Cookies.Delete(
+                AuthenticationConstants.RefreshTokenCookieName,
+                BuildRefreshTokenCookieOptions());
+            Response.Cookies.Delete(
+                AuthenticationConstants.LegacyHangfireCookieName,
+                BuildLegacyHangfireCookieOptions());
+        }
+
+        private CookieOptions BuildAccessTokenCookieOptions() => new()
+        {
+            HttpOnly = true,
+            IsEssential = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = Request.IsHttps,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_jwtSettings.AccessTokenMinutes),
+            Path = "/"
+        };
+
+        private CookieOptions BuildRefreshTokenCookieOptions() => new()
+        {
+            HttpOnly = true,
+            IsEssential = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = Request.IsHttps,
+            Expires = DateTimeOffset.UtcNow.AddDays(_jwtSettings.RefreshTokenDays),
+            Path = "/"
+        };
+
+        private CookieOptions BuildLegacyHangfireCookieOptions() => new()
+        {
+            HttpOnly = true,
+            IsEssential = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = Request.IsHttps,
+            Path = "/hangfire"
+        };
 
         [Authorize]
         [HttpPost("address")]

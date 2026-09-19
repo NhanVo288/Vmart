@@ -8,7 +8,7 @@ export function getProductHubConnection(): HubConnection {
 
   connection = new HubConnectionBuilder()
     .withUrl(`${API_ORIGIN}/hubs/products`, {
-      accessTokenFactory: () => localStorage.getItem("token") ?? "",
+      withCredentials: true,
     })
     .withAutomaticReconnect()
     .configureLogging(LogLevel.Warning)

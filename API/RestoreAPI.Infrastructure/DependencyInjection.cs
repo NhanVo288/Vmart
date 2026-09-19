@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
 using RestoreAPI.Application.DTOs;
+using RestoreAPI.Application.Common;
 using RestoreAPI.Application.Interfaces;
 using RestoreAPI.Application.Requests;
 using RestoreAPI.Application.Settings;
@@ -30,17 +31,10 @@ namespace RestoreAPI.Infrastructure
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found");
 
             var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-            try
-            {
-                var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
-                redisConfig.AbortOnConnectFail = false;
-                var multiplexer = ConnectionMultiplexer.Connect(redisConfig);
-                services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-            }
-            catch
-            {
-                // If connecting to Redis fails on startup, RedisCacheService will safely fallback to database queries
-            }
+            var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
+            redisConfig.AbortOnConnectFail = false;
+            services.AddSingleton<IConnectionMultiplexer>(
+                _ => ConnectionMultiplexer.Connect(redisConfig));
 
             services.AddSingleton<ICacheService>(serviceProvider => new RedisCacheService(
                 serviceProvider.GetService<IConnectionMultiplexer>(),
@@ -70,6 +64,9 @@ namespace RestoreAPI.Infrastructure
 
             var jwtSettings = configuration.GetSection("JWT").Get<JwtSettings>()
                 ?? throw new InvalidOperationException("JWT settings not configured");
+
+            if (jwtSettings.AccessTokenMinutes <= 0 || jwtSettings.RefreshTokenDays <= 0)
+                throw new InvalidOperationException("JWT token lifetimes must be greater than zero.");
 
 
             var sepaySettings = configuration.GetSection("SepaySettings").Get<SepaySettings>()
@@ -149,16 +146,36 @@ namespace RestoreAPI.Infrastructure
                 {
                     var accessToken = context.Request.Query["access_token"];
                     var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/products"))
+                    if (string.IsNullOrWhiteSpace(context.Request.Headers.Authorization) &&
+                        context.Request.Cookies.TryGetValue(
+                            AuthenticationConstants.AccessTokenCookieName,
+                            out var cookieToken))
+                    {
+                        context.Token = cookieToken;
+                        context.HttpContext.Items[AuthenticationConstants.ResolvedTokenItemKey] = cookieToken;
+                    }
+                    else if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/products"))
                     {
                         context.Token = accessToken;
+                        context.HttpContext.Items[AuthenticationConstants.ResolvedTokenItemKey] = accessToken.ToString();
                     }
                     return Task.CompletedTask;
                 },
                 OnTokenValidated = async context =>
                 {
                     var tokenService = context.HttpContext.RequestServices.GetRequiredService<ITokenService>();
-                    var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+                    var authorization = context.Request.Headers.Authorization.ToString();
+                    var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                        ? authorization["Bearer ".Length..].Trim()
+                        : string.Empty;
+                    if (string.IsNullOrWhiteSpace(token) &&
+                        context.HttpContext.Items.TryGetValue(
+                            AuthenticationConstants.ResolvedTokenItemKey,
+                            out var resolvedToken))
+                    {
+                        token = resolvedToken as string ?? string.Empty;
+                    }
+
                     var isValid = await tokenService.IsTokenValidAsync(token);
                     if (!isValid)
                     {

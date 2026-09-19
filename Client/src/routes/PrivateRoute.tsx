@@ -8,14 +8,16 @@ interface Props {
 }
 
 export function PrivateRoute({ children }: Props) {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
   const location = useLocation();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isInitialized && !isAuthenticated) {
       toast.warning('You must login first');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInitialized]);
+
+  if (!isInitialized) return null;
 
   if (!isAuthenticated) {
     return <Navigate to={`/login?returnUrl=${location.pathname}`} replace />;

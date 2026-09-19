@@ -5,9 +5,11 @@ import type { ReactNode } from "react";
 type Props = { children: ReactNode };
 
 export function VendorRoute({ children }: Props) {
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isInitialized, user } = useAppSelector((state) => state.auth);
   const location = useLocation();
   const isVendor = user?.roles?.includes("Vendor");
+
+  if (!isInitialized) return null;
 
   if (!isAuthenticated) {
     return <Navigate to={`/login?returnUrl=${location.pathname}`} replace />;

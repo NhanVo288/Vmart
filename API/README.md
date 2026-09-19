@@ -83,9 +83,10 @@ Mặc định các route controller có tiền tố `/api`.
 | Method | Route | Quyền | Chức năng |
 |---|---|---|---|
 | POST | `/api/account/register` | Công khai | Đăng ký và gộp dữ liệu ẩn danh |
-| POST | `/api/account/login` | Công khai | Đăng nhập, trả thông tin xác thực/JWT |
-| GET | `/api/account/user-info` | Có thể ẩn danh | Lấy user/role và thực hiện chuyển giỏ/yêu thích khi cần |
-| POST | `/api/account/logout` | Đăng nhập | Thu hồi JWT |
+| POST | `/api/account/login` | Công khai | Đăng nhập và đặt access/refresh cookie HttpOnly |
+| POST | `/api/account/refresh` | Refresh cookie | Rotate refresh token trong Redis và cấp access token mới |
+| GET | `/api/account/user-info` | Đăng nhập | Lấy user/role và thực hiện chuyển giỏ/yêu thích khi cần |
+| POST | `/api/account/logout` | Đăng nhập | Thu hồi access token, refresh session và xóa cookie |
 | GET/POST | `/api/account/address` | Đăng nhập | Đọc hoặc lưu địa chỉ |
 | POST | `/api/account/forgot-password` | Công khai | Gửi email đặt lại mật khẩu |
 | POST | `/api/account/reset-password` | Công khai | Đặt mật khẩu mới bằng token |
@@ -193,7 +194,7 @@ Tất cả endpoint yêu cầu role `Vendor`:
 - Hub ở `/hubs/products` và yêu cầu JWT.
 - Vendor tự vào group `vendor-{sellerId}`, Admin vào group `admins`.
 - `ProductNotificationService` phát sự kiện tạo/cập nhật/xóa sản phẩm và lưu thông báo Admin.
-- Với kết nối hub, JWT được phép truyền qua query `access_token` theo cấu hình JWT bearer event.
+- Client web xác thực hub bằng access-token cookie; query `access_token` vẫn được hỗ trợ cho SignalR client không dùng cookie.
 
 ## Hangfire
 

@@ -12,7 +12,7 @@ toàn bộ luồng và lý do của từng bước.
 
 - Duyệt, tìm kiếm, lọc, sắp xếp và phân trang sản phẩm.
 - Giỏ hàng và danh sách yêu thích cho cả khách chưa đăng nhập; dữ liệu được gộp vào tài khoản sau khi đăng nhập/đăng ký.
-- Đăng ký, đăng nhập, đăng xuất, thu hồi JWT, quên/đặt lại mật khẩu và lưu địa chỉ giao hàng.
+- Đăng ký, đăng nhập, đăng xuất, access token trong cookie HttpOnly, refresh-token rotation bằng Redis, quên/đặt lại mật khẩu và lưu địa chỉ giao hàng.
 - Checkout theo ba bước: thông tin liên hệ, địa chỉ giao hàng, thanh toán SePay/VietQR.
 - Lịch sử đơn hàng và chi tiết đơn hàng của người mua.
 - Quản trị sản phẩm, đơn hàng, người dùng, vai trò, thông báo, log và health check.
@@ -30,7 +30,7 @@ Trình duyệt
    │
    ▼
 React SPA (Redux Toolkit, RTK Query, MUI)
-   │ HTTP + JWT + buyerId cookie + SignalR
+   │ HTTP + HttpOnly auth cookies + buyerId cookie + SignalR
    ▼
 ASP.NET Core Presentation
    │
@@ -90,10 +90,10 @@ Restore_System/
 ### Khởi tạo và xác thực
 
 1. React khởi tạo Redux store, theme, i18n và bộ xử lý lỗi chung.
-2. Nếu `localStorage` có JWT, `AuthInitializer` kiểm tra thời hạn rồi gọi `GET /api/account/user-info`.
-3. Request từ RTK Query tự gắn `Authorization: Bearer <token>`, `Accept-Language` và gửi cookie bằng `credentials: include`.
+2. `AuthInitializer` gọi `GET /api/account/user-info`; trình duyệt tự gửi access-token cookie HttpOnly.
+3. Khi access token hết hạn, RTK Query gọi `POST /api/account/refresh`, Redis rotate refresh token rồi request ban đầu được thử lại.
 4. Khách chưa đăng nhập được nhận cookie HttpOnly `buyerId` để định danh giỏ hàng/danh sách yêu thích.
-5. Khi đăng nhập hoặc đăng ký, dữ liệu ẩn danh được chuyển sang user hiện tại. Đăng xuất đưa JWT vào bảng token bị thu hồi.
+5. Khi đăng nhập hoặc đăng ký, dữ liệu ẩn danh được chuyển sang user hiện tại. Đăng xuất thu hồi access token, xóa refresh session trong Redis và xóa cookie.
 
 ### Duyệt sản phẩm và giỏ hàng
 

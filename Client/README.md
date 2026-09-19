@@ -102,8 +102,8 @@ Vendor chỉ thao tác trên dữ liệu thuộc phạm vi của mình do backen
 `src/stores/baseApi.ts` là cấu hình RTK Query dùng chung:
 
 - Base URL lấy từ `VITE_API_BASE_URL`.
-- `credentials: 'include'` gửi cookie định danh giỏ hàng ẩn danh.
-- JWT trong `localStorage['token']` được gắn vào header `Authorization`.
+- `credentials: 'include'` gửi cookie định danh giỏ hàng và cookie xác thực HttpOnly.
+- Access/refresh token không được lưu trong JavaScript hoặc `localStorage`; khi gặp `401`, client rotate refresh token một lần rồi thử lại request.
 - Ngôn ngữ trong `localStorage['language']` được gửi bằng `Accept-Language`.
 - Cache tự refetch khi kết nối mạng trở lại và dùng tag để vô hiệu hóa dữ liệu liên quan.
 - Lỗi HTTP được xử lý tập trung: toast cho lỗi nghiệp vụ/quyền, chuyển trang cho 404/500.
@@ -125,9 +125,9 @@ Các API slice chính:
 
 ## Luồng xác thực
 
-1. `authSlice` giữ user, token và trạng thái khởi tạo.
-2. Khi ứng dụng chạy, `AuthInitializer` đọc JWT, kiểm tra thời hạn và tải lại thông tin người dùng.
-3. Token hết hạn hoặc request xác thực thất bại sẽ xóa phiên cục bộ.
+1. `authSlice` chỉ giữ user và trạng thái khởi tạo; token nằm trong cookie HttpOnly.
+2. Khi ứng dụng chạy, `AuthInitializer` tải lại thông tin người dùng bằng cookie.
+3. Access token hết hạn sẽ được refresh tự động; refresh thất bại mới xóa phiên cục bộ.
 4. Guard xác định quyền truy cập route dựa trên trạng thái đăng nhập và role.
 5. Giỏ/yêu thích tạo khi chưa đăng nhập được backend gộp vào tài khoản sau login/register.
 
@@ -146,7 +146,7 @@ Client không tự tạo đơn và không tự xác nhận đã thanh toán. Bac
 
 ## Realtime
 
-- SignalR kết nối tới `${API origin}/hubs/products` và truyền JWT qua `accessTokenFactory`.
+- SignalR kết nối tới `${API origin}/hubs/products` và xác thực bằng access-token cookie.
 - Chỉ tài khoản Admin/Vendor mở kết nối này.
 - Khi có sự kiện sản phẩm/thông báo, hook SignalR làm mới tag RTK Query liên quan và hiển thị toast.
 - Kết nối bật tự động reconnect.

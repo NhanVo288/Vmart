@@ -12,7 +12,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useLoginMutation, authApi } from '../../../stores/authApi';
-import { setCredentials, setUser } from '../../../stores/authSlice';
+import { setUser } from '../../../stores/authSlice';
 import { useAppDispatch } from '../../../stores/hooks';
 import { baseApi } from '../../../stores/baseApi';
 import { AuthLayout } from '../../../components/ui/AuthLayout';
@@ -49,21 +49,12 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setError('');
     try {
-      const result = await login({ email: data.email, password: data.password }).unwrap();
-      if (!result.token) throw new Error('Login failed');
-      dispatch(
-        setCredentials({
-          token: result.token,
-          user: { email: data.email, userName: data.email, roles: [] },
-        })
-      );
-      try {
-        const userInfo = await dispatch(
-          authApi.endpoints.getUserInfo.initiate(undefined, { forceRefetch: true })
-        ).unwrap();
-        dispatch(setUser(userInfo));
-        dispatch(baseApi.util.invalidateTags(['Basket', 'Favorite']));
-      } catch { /* best-effort */ }
+      await login({ email: data.email, password: data.password }).unwrap();
+      const userInfo = await dispatch(
+        authApi.endpoints.getUserInfo.initiate(undefined, { forceRefetch: true })
+      ).unwrap();
+      dispatch(setUser(userInfo));
+      dispatch(baseApi.util.invalidateTags(['Basket', 'Favorite']));
       navigate(returnUrl);
     } catch (err: any) {
       const errors = err?.data?.errors;
