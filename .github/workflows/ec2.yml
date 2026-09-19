@@ -98,6 +98,11 @@ jobs:
           : "${AWS_REGION:?Missing AWS_REGION environment variable}"
           : "${AWS_ROLE_ARN:?Missing AWS_ROLE_ARN environment variable}"
           : "${EC2_SECURITY_GROUP_ID:?Missing EC2_SECURITY_GROUP_ID environment variable}"
+      - name: Show GitHub OIDC identity
+        run: |
+          echo "owner_id=${{ github.repository_owner_id }}"
+          echo "repository_id=${{ github.repository_id }}"
+          echo "ref=${{ github.ref }}"
       - name: Configure temporary AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
