@@ -315,6 +315,7 @@ export function Navbar() {
                 size="small"
                 startIcon={<LoginIcon />}
                 sx={{
+                  display: { xs: "none", md: "inline-flex" },
                   textTransform: "none",
                   borderRadius: 2,
                   borderColor: "primary.main",
@@ -331,12 +332,15 @@ export function Navbar() {
             )}
 
             {/* Language Selector */}
-            <LanguageSelector />
+            <Box sx={{ display: { xs: "none", md: "flex" } }}>
+              <LanguageSelector />
+            </Box>
 
             {/* Theme Toggle */}
             <IconButton
               onClick={toggleMode}
               sx={{
+                display: { xs: "none", md: "inline-flex" },
                 color: "text.primary",
                 transition: "transform 0.3s ease",
                 "&:hover": { transform: "rotate(30deg)" },
@@ -442,6 +446,38 @@ export function Navbar() {
         </List>
         <Divider />
         <List>
+          <ListItem disablePadding>
+            <Box
+              sx={{
+                width: "100%",
+                mx: 1,
+                display: "flex",
+                alignItems: "center",
+                "& > button": {
+                  width: "100%",
+                  justifyContent: "flex-start",
+                  px: 2,
+                },
+              }}
+            >
+              <LanguageSelector />
+            </Box>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={toggleMode}
+              sx={{ borderRadius: 2, mx: 1 }}
+            >
+              {mode === "dark" ? (
+                <LightMode fontSize="small" sx={{ mr: 1 }} />
+              ) : (
+                <DarkMode fontSize="small" sx={{ mr: 1 }} />
+              )}
+              <ListItemText
+                primary={mode === "dark" ? t("lightMode") : t("darkMode")}
+              />
+            </ListItemButton>
+          </ListItem>
           {isAuthenticated ? (
             <ListItem disablePadding>
               <ListItemButton
@@ -452,7 +488,7 @@ export function Navbar() {
                 sx={{ borderRadius: 2, mx: 1 }}
               >
                 <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-                <ListItemText primary="Sign Out" />
+                <ListItemText primary={t("logout")} />
               </ListItemButton>
             </ListItem>
           ) : (
@@ -465,7 +501,7 @@ export function Navbar() {
                 sx={{ borderRadius: 2, mx: 1 }}
               >
                 <LoginIcon fontSize="small" sx={{ mr: 1 }} />
-                <ListItemText primary="Sign In" />
+                <ListItemText primary={t("login")} />
               </ListItemButton>
             </ListItem>
           )}
