@@ -109,7 +109,7 @@ export function Navbar() {
         }}
       >
         <Container maxWidth="xl">
-          <Toolbar disableGutters sx={{ gap: 1 }}>
+          <Toolbar disableGutters sx={{ gap: { xs: 0.25, md: 1 } }}>
             {/* Mobile Menu Icon */}
             <IconButton
               edge="start"
@@ -126,7 +126,7 @@ export function Navbar() {
                   display: "flex",
                   alignItems: "center",
                   gap: 1,
-                  mr: 4,
+                  mr: { xs: 0, md: 4 },
                 }}
               >
                 <Box
@@ -206,9 +206,18 @@ export function Navbar() {
               )}
             </Box>
 
-            {/* Auth Section */}
-            {isAuthenticated ? (
-              <>
+            {/* Account, favorites and cart stay aligned to the right on mobile */}
+            <Box
+              sx={{
+                ml: { xs: "auto", md: 0 },
+                display: "flex",
+                alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              {/* Auth Section */}
+              {isAuthenticated ? (
+                <>
                 <IconButton
                   onClick={(e) => setAnchorEl(e.currentTarget)}
                   sx={{ color: "text.primary" }}
@@ -306,80 +315,81 @@ export function Navbar() {
                     <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> {t("logout")}
                   </MenuItem>
                 </Menu>
-              </>
-            ) : (
-              <Button
-                component={Link}
-                to="/login"
-                variant="outlined"
-                size="small"
-                startIcon={<LoginIcon />}
+                </>
+              ) : (
+                <Button
+                  component={Link}
+                  to="/login"
+                  variant="outlined"
+                  size="small"
+                  startIcon={<LoginIcon />}
+                  sx={{
+                    display: { xs: "none", md: "inline-flex" },
+                    textTransform: "none",
+                    borderRadius: 2,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    fontWeight: 600,
+                    "&:hover": {
+                      borderColor: "primary.light",
+                      bgcolor: "rgba(13,33,55,0.08)",
+                    },
+                  }}
+                >
+                  {t("login")}
+                </Button>
+              )}
+
+              {/* Language Selector */}
+              <Box sx={{ display: { xs: "none", md: "flex" } }}>
+                <LanguageSelector />
+              </Box>
+
+              {/* Theme Toggle */}
+              <IconButton
+                onClick={toggleMode}
                 sx={{
                   display: { xs: "none", md: "inline-flex" },
-                  textTransform: "none",
-                  borderRadius: 2,
-                  borderColor: "primary.main",
-                  color: "primary.main",
-                  fontWeight: 600,
-                  "&:hover": {
-                    borderColor: "primary.light",
-                    bgcolor: "rgba(13,33,55,0.08)",
-                  },
+                  color: "text.primary",
+                  transition: "transform 0.3s ease",
+                  "&:hover": { transform: "rotate(30deg)" },
                 }}
               >
-                {t("login")}
-              </Button>
-            )}
+                {mode === "dark" ? <LightMode /> : <DarkMode />}
+              </IconButton>
 
-            {/* Language Selector */}
-            <Box sx={{ display: { xs: "none", md: "flex" } }}>
-              <LanguageSelector />
+              {/* Favorites Icon */}
+              <IconButton
+                component={Link}
+                to="/favorites"
+                sx={{ color: "text.primary" }}
+              >
+                <Badge
+                  badgeContent={favoriteCount}
+                  color="secondary"
+                  sx={{ "& .MuiBadge-badge": { fontWeight: 700 } }}
+                >
+                  <FavoriteIcon
+                    sx={{ color: favoriteCount > 0 ? "#e91e63" : "inherit" }}
+                  />
+                </Badge>
+              </IconButton>
+
+              {/* Cart Icon */}
+              <IconButton
+                component={Link}
+                to="/cart"
+                sx={{ color: "text.primary" }}
+              >
+                <Badge
+                  badgeContent={itemCount}
+                  color="primary"
+                  sx={{ "& .MuiBadge-badge": { fontWeight: 700 } }}
+                >
+                  <ShoppingCart />
+                </Badge>
+              </IconButton>
             </Box>
-
-            {/* Theme Toggle */}
-            <IconButton
-              onClick={toggleMode}
-              sx={{
-                display: { xs: "none", md: "inline-flex" },
-                color: "text.primary",
-                transition: "transform 0.3s ease",
-                "&:hover": { transform: "rotate(30deg)" },
-              }}
-            >
-              {mode === "dark" ? <LightMode /> : <DarkMode />}
-            </IconButton>
-
-            {/* Favorites Icon */}
-            <IconButton
-              component={Link}
-              to="/favorites"
-              sx={{ color: "text.primary" }}
-            >
-              <Badge
-                badgeContent={favoriteCount}
-                color="secondary"
-                sx={{ "& .MuiBadge-badge": { fontWeight: 700 } }}
-              >
-                <FavoriteIcon
-                  sx={{ color: favoriteCount > 0 ? "#e91e63" : "inherit" }}
-                />
-              </Badge>
-            </IconButton>
-
-            {/* Cart Icon */}
-            <IconButton
-              component={Link}
-              to="/cart"
-              sx={{ color: "text.primary" }}
-            >
-              <Badge
-                badgeContent={itemCount}
-                color="primary"
-                sx={{ "& .MuiBadge-badge": { fontWeight: 700 } }}
-              >
-                <ShoppingCart />
-              </Badge>
-            </IconButton>
           </Toolbar>
         </Container>
       </AppBar>
