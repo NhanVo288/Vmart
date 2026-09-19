@@ -305,13 +305,13 @@ policy** và dùng policy sau khi thay `<AWS_ACCOUNT_ID>`:
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::175880708106:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:NhanVo288/Vmart:environment:production",
+          "token.actions.githubusercontent.com:sub": "repo:NhanVo288@<OWNER_ID>/Vmart@<REPO_ID>:environment:production",
           "token.actions.githubusercontent.com:ref": "refs/heads/main"
         }
       }
