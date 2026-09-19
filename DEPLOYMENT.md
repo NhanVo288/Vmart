@@ -1,6 +1,11 @@
-# README triển khai production — Restore System
+# Triển khai production — Restore System
 
-Tự động build và deploy bằng GitHub Actions: xem [CI/CD lên EC2](CICD.md).
+Repo hỗ trợ hai cách triển khai:
+
+- **Khuyến nghị:** GitHub Actions build image, đẩy lên GHCR và deploy image theo
+  commit SHA; xem [CI/CD lên EC2](CICD.md).
+- **Thủ công:** clone source trên EC2 rồi build bằng Docker Compose; các bước đầy
+  đủ nằm trong tài liệu này.
 
 Tài liệu này là runbook triển khai Restore System lên **một AWS EC2 chạy Ubuntu
 24.04 LTS x86_64** bằng Docker Compose. Luồng mặc định dùng Elastic IP, DNS và
@@ -67,9 +72,12 @@ lại của Compose không thay đổi.
 | File | Trách nhiệm |
 |---|---|
 | `docker-compose.prod.yml` | Ghép service, network nội bộ, volume, health check, biến môi trường và thứ tự khởi động |
+| `docker-compose.ec2.yml` | Overlay image GHCR và health check end-to-end dùng khi CI/CD deploy lên EC2 |
 | `API/Dockerfile` | Restore/publish API bằng .NET SDK 10 rồi chạy trên ASP.NET Runtime 10 |
 | `Client/Dockerfile` | Build React bằng Node 24 rồi chỉ chép artifact sang Nginx 1.28 |
 | `Client/nginx.conf` | Phục vụ SPA và proxy các route backend |
+| `.github/workflows/ec2.yml` | Validate, build hai image `linux/amd64`, push GHCR và điều phối deploy production |
+| `scripts/deploy-ec2.sh` | Pull image theo SHA, tuần tự cập nhật stack và ghi nhận release thành công |
 | `.env.example` | Danh sách biến production mẫu, không chứa secret thật |
 | `.env` | Giá trị thực được Compose đọc ở lúc deploy; Git và Docker build context đều bỏ qua |
 
@@ -200,6 +208,8 @@ thể làm container thoát lúc khởi động.
 
 ### 4.5. Lấy source code
 
+Phần này chỉ cần cho cách deploy thủ công:
+
 ```bash
 sudo mkdir -p /opt/restore-system
 sudo chown "$USER":"$USER" /opt/restore-system
@@ -210,9 +220,14 @@ cd /opt/restore-system
 Với repository private, dùng deploy key chỉ có quyền đọc hoặc credential helper;
 không ghi personal access token trực tiếp vào URL Git hay shell history.
 
+Nếu dùng CI/CD, không clone source và không cần cài Node/.NET trên EC2. Pipeline
+chỉ tải các file Compose/deploy script vào `~/Vmart/releases/<release>` rồi pull
+image từ GHCR. Việc chuẩn bị thư mục, `.env`, đăng nhập GHCR và GitHub Environment
+được mô tả trong [CICD.md](CICD.md).
+
 ## 5. Chuẩn bị biến môi trường trên EC2
 
-Tại `/opt/restore-system`:
+Với deploy thủ công, tạo file tại `/opt/restore-system/.env`:
 
 ```bash
 cp .env.example .env
@@ -220,11 +235,16 @@ chmod 600 .env
 nano .env
 ```
 
+Với CI/CD, file tương ứng là `~/Vmart/.env` và không được workflow ghi đè. Xem
+[danh sách biến production và cách tạo secret](CICD.md#21-lấy-các-biến-cho-env-production).
+
 Tối thiểu phải thay:
 
 ```env
 MSSQL_SA_PASSWORD=<mật-khẩu-SQL-mạnh>
 JWT_KEY=<chuỗi-ngẫu-nhiên-dài-tối-thiểu-32-ký-tự>
+JWT_ACCESS_TOKEN_MINUTES=15
+JWT_REFRESH_TOKEN_DAYS=30
 PUBLIC_ORIGIN=https://shop.example.com
 HTTP_BIND_ADDRESS=127.0.0.1
 HTTP_PORT=8080
@@ -242,6 +262,7 @@ HTTP_PORT=8080
 |---|---:|---|
 | `MSSQL_SA_PASSWORD` | Có | Khởi tạo SQL Server và connection string cho API |
 | `JWT_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE` | Có | Ký và kiểm tra access token |
+| `JWT_ACCESS_TOKEN_MINUTES`, `JWT_REFRESH_TOKEN_DAYS` | Có | Thời hạn access token và refresh session; mặc định lần lượt là 15 phút và 30 ngày |
 | `PUBLIC_ORIGIN` | Có | CORS và URL trong email; không có dấu `/` cuối |
 | `HTTP_BIND_ADDRESS`, `HTTP_PORT` | Có | Chỉ đưa Nginx container ra loopback port 8080 |
 | `SEPAY_*` | Khi dùng thanh toán | Tạo VietQR và xác thực webhook |
@@ -267,6 +288,10 @@ Hai lệnh Compose parse YAML, nội suy `.env` và phát hiện biến bắt bu
 Không đăng output đầy đủ của `docker compose config` vì nội dung đã render có thể
 chứa secret. Lệnh `ss` giúp phát hiện port bị chiếm trước khi start.
 
+Với CI/CD, job `validate` kiểm tra cấu hình đã ghép từ cả file production và
+overlay EC2 bằng các giá trị image giả; deploy script kiểm tra lại với `.env` và
+image SHA thật trước khi pull hoặc recreate container.
+
 Xác nhận thêm:
 
 - `dig +short shop.example.com` trả về Elastic IP.
@@ -274,11 +299,15 @@ Xác nhận thêm:
 - `PUBLIC_ORIGIN` khớp chính xác domain HTTPS.
 - EBS còn đủ dung lượng bằng `df -h`.
 
-## 7. Build và khởi động lần đầu
+## 7. Build và khởi động thủ công lần đầu
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+Lệnh này dành cho checkout đầy đủ tại `/opt/restore-system`. Với CI/CD, workflow
+dùng cả `docker-compose.prod.yml` và `docker-compose.ec2.yml`, đặt `API_IMAGE` và
+`FRONTEND_IMAGE` theo commit SHA, rồi luôn chạy `--no-build` trên EC2.
 
 Lệnh trên thực hiện các pha sau.
 
@@ -336,7 +365,8 @@ instance cùng migrate.
 
 Frontend được start sau API theo thứ tự Compose. `depends_on` ở frontend chỉ đảm
 bảo API container đã được start, không khẳng định API đã healthy; vì vậy kiểm tra
-sau deploy vẫn là bước bắt buộc.
+sau deploy vẫn là bước bắt buộc đối với cách chạy thủ công. Overlay EC2 của CI/CD
+bổ sung health check cho frontend: kiểm tra cả `/` và `/health/ready` qua Nginx.
 
 ## 8. Luồng request khi hệ thống đang chạy
 
@@ -347,10 +377,15 @@ sau deploy vẫn là bước bắt buộc.
 3. RTK Query gọi `/api/...`; Nginx chuyển request tới `http://api:8080` và giữ
    `Host`, IP client, protocol gốc.
 4. API đọc `X-Forwarded-Proto` trước `UseHttpsRedirection`, nên biết request public
-   ban đầu là HTTPS dù hop nội bộ từ Nginx sang API dùng HTTP.
-5. SignalR dùng `/hubs/products`; Nginx chuyển `Upgrade`/`Connection` để nâng cấp
-   WebSocket và tăng read timeout lên 60 phút.
-6. `/hangfire` và `/health*` cũng được proxy tới API. Ở Production, Hangfire
+   ban đầu là HTTPS dù hop nội bộ từ Nginx sang API dùng HTTP. Điều này cũng giúp
+   API đặt cờ `Secure` đúng cho cookie xác thực.
+5. Sau login/register, access token và refresh token nằm trong cookie `HttpOnly`,
+   `SameSite=Strict`; frontend gửi cookie bằng `credentials: include` và tự gọi
+   `/api/account/refresh` khi access token hết hạn. Token không được lưu trong
+   `localStorage`.
+6. SignalR dùng `/hubs/products`, xác thực bằng access-token cookie; Nginx chuyển
+   `Upgrade`/`Connection` để nâng cấp WebSocket và tăng read timeout lên 60 phút.
+7. `/hangfire` và `/health*` cũng được proxy tới API. Ở Production, Hangfire
    dashboard yêu cầu quyền Admin.
 
 `PUBLIC_ORIGIN` vẫn phải đúng dù ứng dụng dùng same-origin, vì API cấu hình CORS
@@ -463,8 +498,23 @@ cùng origin với frontend.
 
 ## 11. Kibana tùy chọn
 
+Với deploy thủ công tại `/opt/restore-system`:
+
 ```bash
 docker compose -f docker-compose.prod.yml --profile observability up -d
+```
+
+Với release CI/CD:
+
+```bash
+cd "$(readlink -f "$HOME/Vmart/current")"
+set -a
+source images.env
+set +a
+docker compose --project-name restore-system \
+  --env-file "$HOME/Vmart/.env" \
+  -f docker-compose.prod.yml -f docker-compose.ec2.yml \
+  --profile observability up -d --no-build kibana
 ```
 
 API production nhận `Elasticsearch__NodeUri=http://elasticsearch:9200` và
@@ -489,6 +539,34 @@ Sau đó mở `http://localhost:5601` trên máy cá nhân.
 
 ## 12. Cập nhật phiên bản trên EC2
 
+### 12.1. Cập nhật qua CI/CD (khuyến nghị)
+
+Push hoặc merge vào `main`, hoặc chạy thủ công workflow **CI/CD EC2** trên
+`main`. Pipeline hiện tại:
+
+1. Chạy lint frontend, ShellCheck và kiểm tra cấu hình Compose.
+2. Build song song API/frontend cho `linux/amd64`, gắn tag commit SHA và push GHCR.
+3. Dùng AWS OIDC credential ngắn hạn để mở port SSH cho đúng IP `/32` của runner.
+4. Upload release vào `~/Vmart/releases/<sha>-<run-id>-<attempt>`.
+5. Pull image trước khi thay container; chờ SQL, Redis và Elasticsearch healthy.
+6. Recreate API cùng frontend, rồi chờ Nginx và `/health/ready` thành công.
+7. Cập nhật symlink `~/Vmart/current` và luôn thu hồi rule SSH tạm.
+
+Workflow dùng project Compose cố định `restore-system`, vì vậy named volume được
+giữ nguyên giữa các release. `flock` trên host và `concurrency` trong GitHub
+Actions ngăn các lần deploy chạy chồng nhau. Chi tiết thiết lập và xử lý lỗi nằm
+trong [CICD.md](CICD.md).
+
+Sau workflow, vẫn nên kiểm tra đường public vì health check trong pipeline chạy
+từ bên trong container Nginx:
+
+```bash
+curl -f https://shop.example.com/health/ready
+curl -I https://shop.example.com/
+```
+
+### 12.2. Cập nhật thủ công từ source
+
 Trước khi cập nhật có migration hoặc thay đổi lớn, sao lưu database và ghi lại
 commit/image đang chạy. Sau đó:
 
@@ -499,7 +577,7 @@ docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs --tail=200 api
-curl -i https://shop.example.com/health/ready
+curl -f https://shop.example.com/health/ready
 ```
 
 `up -d --build` chỉ thay container/image cần thiết và giữ named volume. Không cần
@@ -539,11 +617,17 @@ EBS snapshot bảo vệ toàn bộ Docker data trên volume, nhưng snapshot khi
 và phải thử quy trình restore. Snapshot EBS mặc định là incremental; dữ liệu
 không được AWS tự động backup nếu chưa tạo policy.
 
-Rollback code: checkout/tag lại phiên bản trước và chạy lại `up -d --build`.
+Với deploy thủ công, rollback code bằng cách checkout/tag lại phiên bản trước và
+chạy lại `up -d --build`. Với CI/CD, chọn release thành công trong
+`~/Vmart/releases`, nạp `images.env` của release đó rồi chạy Compose với cả file
+production và overlay EC2; xem [lệnh rollback chính xác](CICD.md#6-quay-lại-bản-trước).
+Pipeline không tự rollback image khi deploy lỗi; symlink `current` vẫn trỏ tới
+release thành công gần nhất nhưng container có thể đã được thay.
+
 Rollback database phải được thiết kế theo từng migration. Vì API tự migrate khi
-start, chỉ rollback code có thể thất bại nếu schema mới không tương thích; không
-tự động chạy migration `Down` trên production khi chưa có backup và kế hoạch
-khôi phục đã kiểm thử.
+start, chỉ rollback code/image có thể thất bại nếu schema mới không tương thích;
+không tự động chạy migration `Down` trên production khi chưa có backup và kế
+hoạch khôi phục đã kiểm thử.
 
 Tuyệt đối không chạy lệnh sau trên production nếu muốn giữ dữ liệu:
 
@@ -554,6 +638,8 @@ docker compose -f docker-compose.prod.yml down -v
 Tùy chọn `-v` xóa cả `sql_data`, `redis_data` và `elasticsearch_data`.
 
 ## 14. Lệnh vận hành thường dùng
+
+Với deploy thủ công, chạy tại `/opt/restore-system`:
 
 ```bash
 # Xem container và health/status
@@ -577,6 +663,26 @@ docker compose -f docker-compose.prod.yml down
 # Xem dung lượng image/volume
 docker system df -v
 ```
+
+Với stack do CI/CD quản lý, vào release đang chạy và dựng lại đúng lệnh Compose
+đã dùng khi deploy:
+
+```bash
+cd "$(readlink -f "$HOME/Vmart/current")"
+set -a
+source images.env
+set +a
+compose=(docker compose --project-name restore-system \
+  --env-file "$HOME/Vmart/.env" \
+  -f docker-compose.prod.yml -f docker-compose.ec2.yml)
+
+"${compose[@]}" ps
+"${compose[@]}" logs --tail=200 api
+"${compose[@]}" logs -f frontend
+```
+
+Không chạy `up` từ release CI/CD nếu chưa nạp `images.env`; hai biến này khóa API
+và frontend vào đúng image SHA của release.
 
 ## 15. Chẩn đoán lỗi thường gặp
 
@@ -610,7 +716,9 @@ vì vậy phải build lại frontend, không chỉ restart.
 ### SignalR không kết nối
 
 Reverse proxy ngoài Docker phải hỗ trợ WebSocket và forward header Upgrade.
-Kiểm tra path `/hubs/products`, JWT và log Nginx/API.
+Kiểm tra path `/hubs/products`, access-token cookie có được gửi cùng request,
+`X-Forwarded-Proto` và log Nginx/API. Client web hiện dùng cookie HttpOnly thay
+vì token trong `localStorage`.
 
 ### Upload, email hoặc thanh toán không hoạt động
 
@@ -638,12 +746,15 @@ kích thước EBS rồi mở rộng filesystem. Chỉ prune image sau khi bản
 
 ## 16. Giới hạn của kiến trúc một EC2
 
-- Image được build trên máy deploy, chưa có CI/CD hoặc immutable image registry.
-- Secret đi qua `.env`, chưa tích hợp secret manager.
+- CI/CD đã build image theo commit SHA và lưu ở GHCR, nhưng deploy vẫn recreate
+  container trên một host nên có thể gián đoạn ngắn; chưa phải rolling/zero-downtime.
+- Secret runtime vẫn nằm trong `~/Vmart/.env` (hoặc `.env` của bản thủ công), chưa
+  tích hợp Parameter Store/Secrets Manager hay Docker secrets.
 - API tự chạy migration lúc start, phù hợp một replica hơn là rolling deployment
   nhiều replica.
-- Chưa có health check riêng cho container `api` và `frontend` trong Compose;
-  việc xác minh sau deploy hiện dựa vào endpoint và lệnh kiểm tra thủ công.
+- Overlay EC2 có health check cho frontend, đồng thời gọi `/health/ready` qua
+  Nginx; service API chưa có health check container độc lập trong file production.
+- Pipeline chưa tự backup, rollback image hoặc rollback database khi deploy lỗi.
 - Caddy, app và database cùng nằm trên một EC2; instance/AZ là single point of
   failure và lúc reboot sẽ có downtime.
 - Named volume nằm trên một EBS/host, chưa phải kiến trúc high availability.
