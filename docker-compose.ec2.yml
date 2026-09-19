@@ -1,0 +1,12 @@
+# Overlay for registry images. Always deploy with --no-build.
+services:
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE}
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set FRONTEND_IMAGE}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s

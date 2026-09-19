@@ -1,5 +1,7 @@
 # README triển khai production — Restore System
 
+Tự động build và deploy bằng GitHub Actions: xem [CI/CD lên EC2](CICD.md).
+
 Tài liệu này là runbook triển khai Restore System lên **một AWS EC2 chạy Ubuntu
 24.04 LTS x86_64** bằng Docker Compose. Luồng mặc định dùng Elastic IP, DNS và
 Caddy trên host để cấp HTTPS; bên trong EC2, Nginx container phục vụ React và

@@ -1,0 +1,108 @@
+name: CI/CD EC2
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ec2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Client/package-lock.json
+      - run: npm ci --prefix Client
+      - run: npm --prefix Client run lint
+      - name: Validate deployment files
+        env:
+          API_IMAGE: ghcr.io/example/restore-api:check
+          FRONTEND_IMAGE: ghcr.io/example/restore-frontend:check
+        run: |
+          bash -n scripts/deploy-ec2.sh
+          shellcheck scripts/deploy-ec2.sh
+          docker compose --env-file .env.example -f docker-compose.prod.yml -f docker-compose.ec2.yml config --quiet
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: api
+            dockerfile: API/Dockerfile
+          - service: frontend
+            dockerfile: Client/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Image name
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: VITE_API_BASE_URL=/api
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        run: |
+          : "${EC2_HOST:?Missing EC2_HOST}" "${EC2_USER:?Missing EC2_USER}"
+          : "${EC2_SSH_KEY:?Missing EC2_SSH_KEY}" "${EC2_KNOWN_HOSTS:?Missing EC2_KNOWN_HOSTS}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Upload release and deploy
+        run: |
+          release="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          target="${EC2_USER}@${EC2_HOST}"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "mkdir -p ~/Vmart/releases/$release"
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes docker-compose.prod.yml docker-compose.ec2.yml scripts/deploy-ec2.sh "$target:Vmart/releases/$release/"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" \
+            "bash ~/Vmart/releases/$release/deploy-ec2.sh '$release' '${REPOSITORY,,}' '$GITHUB_SHA'"
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

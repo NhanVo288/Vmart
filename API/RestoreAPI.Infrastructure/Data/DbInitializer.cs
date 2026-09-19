@@ -48,7 +48,7 @@ namespace RestoreAPI.Infrastructure.Data
                     Email = "admin@test.com"
                 };
 
-                var result = await _userManager.CreateAsync(admin, "REDACTED_PASSWORD");
+                var result = await _userManager.CreateAsync(admin, "Admin123!");
                 if (result.Succeeded)
                 {
                     await _userManager.AddToRolesAsync(admin, ["Admin", "User"]);
@@ -60,19 +60,19 @@ namespace RestoreAPI.Infrastructure.Data
                 await _userManager.UpdateAsync(admin);
             }
 
-            var member = await _userManager.FindByEmailAsync("Fady@test.com");
+            var member = await _userManager.FindByEmailAsync("vendor@test.com");
             if (member == null)
             {
                 member = new User
                 {
-                    UserName = "Fady@test.com",
-                    Email = "Fady@test.com"
+                    UserName = "vendor@test.com",
+                    Email = "vendor@test.com"
                 };
 
-                var result = await _userManager.CreateAsync(member, "REDACTED_PASSWORD");
+                var result = await _userManager.CreateAsync(member, "Vendor123!");
                 if (result.Succeeded)
                 {
-                    await _userManager.AddToRoleAsync(member, "User");
+                    await _userManager.AddToRoleAsync(member, "Vendor");
                 }
             }
             else if (member.UserName != member.Email)
