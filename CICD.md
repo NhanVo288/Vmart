@@ -210,6 +210,39 @@ tự sinh, không cần khai báo thủ công.
 
 ### 2.5. Cho GitHub Actions quyền cập nhật Security Group bằng OIDC
 
+#### Vì sao dùng luồng này?
+
+EC2 hiện chỉ cho phép SSH từ IP quản trị cố định `/32`, trong khi mỗi job
+`ubuntu-latest` có thể chạy từ một IP public khác. Vì vậy mở SSH cho IP máy cá nhân vẫn
+an toàn cho thao tác thủ công nhưng GitHub Actions sẽ bị `Connection timed out`.
+
+Các cách đơn giản hơn đều có nhược điểm đáng kể:
+
+| Cách | Vấn đề |
+|---|---|
+| Mở `22/TCP` cho `0.0.0.0/0` | EC2 bị dò quét và thử đăng nhập SSH liên tục từ Internet |
+| Allowlist toàn bộ IP GitHub Actions | Dải IP lớn, thay đổi định kỳ và rộng hơn nhiều so với một runner cần deploy |
+| Larger runner có static IP | Dễ allowlist nhưng phát sinh chi phí GitHub |
+| Self-hosted runner | Cần thêm máy, cập nhật, giám sát và bảo vệ runner; không nên đặt runner có quyền cao trực tiếp trên EC2 production |
+
+Luồng OIDC và rule `/32` tạm thời được chọn vì không cần thêm máy, không mở SSH thường
+trực cho Internet và không lưu AWS access key dài hạn trong GitHub. Luồng thực tế:
+
+```text
+GitHub job trên main, Environment production
+  → nhận AWS credential ngắn hạn qua OIDC
+  → lấy public IPv4 của đúng runner hiện tại
+  → thêm rule 22/TCP chỉ cho <runner-ip>/32
+  → xác thực host key + SSH key, upload và deploy
+  → thu hồi đúng rule vừa tạo, kể cả khi deploy thất bại
+```
+
+OIDC chỉ cấp hai quyền AWS tối thiểu để thêm/xóa ingress trên **một Security Group**;
+nó không cấp quyền quản trị EC2 và không thay thế xác thực SSH. `EC2_SSH_KEY` vẫn chứng
+minh danh tính client, còn `EC2_KNOWN_HOSTS` bảo đảm runner đang kết nối đúng server.
+Ba lớp này giải quyết ba việc độc lập: mở đường mạng tạm thời, xác thực client và xác
+thực server.
+
 Runner `ubuntu-latest` có IP thay đổi. Workflow lấy public IPv4 của runner, dùng AWS OIDC
 thêm tạm rule SSH `<runner-ip>/32`, deploy, rồi xóa chính rule đó trong bước
 `if: always()`. Không mở port 22 cho `0.0.0.0/0` và không cần allowlist toàn bộ dải IP
